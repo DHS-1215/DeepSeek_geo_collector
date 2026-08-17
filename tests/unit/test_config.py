@@ -17,12 +17,15 @@ def test_load_settings_uses_default_values(monkeypatch: pytest.MonkeyPatch) -> N
         "NETWORK_RETRY_INTERVAL_SECONDS",
         "SAVE_RAW_HTML_ON_ERROR",
         "LOG_LEVEL",
+        "CHROMIUM_EXECUTABLE_PATH",
     ]
 
     for name in env_names:
         monkeypatch.delenv(name, raising=False)
 
-    settings = load_settings()
+    settings = load_settings(
+        env_file=None
+    )
 
     assert settings.deepseek_url == "https://chat.deepseek.com"
 

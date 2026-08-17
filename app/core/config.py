@@ -1,9 +1,9 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from dotenv import load_dotenv
 
 from app.core.exceptions import ConfigurationError
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -68,22 +68,28 @@ class Settings:
 
     log_level: str
 
+    chromium_executable_path: str | None = None
 
-def load_settings() -> Settings:
-    """从环境变量读取项目配置。"""
 
-    browser_profile_dir = Path(
-        os.getenv(
-            "BROWSER_PROFILE_DIR",
-            str(PROJECT_ROOT / "browser_profile"),
+def load_settings(
+        env_file: Path | None = PROJECT_ROOT / ".env",
+) -> Settings:
+    """读取项目配置。"""
+
+    if env_file is not None:
+        load_dotenv(
+            env_file,
+            override=False,
         )
+
+    browser_profile_dir = _get_path_env(
+        "BROWSER_PROFILE_DIR",
+        PROJECT_ROOT / "browser_profile",
     )
 
-    output_dir = Path(
-        os.getenv(
-            "OUTPUT_DIR",
-            str(PROJECT_ROOT / "output"),
-        )
+    output_dir = _get_path_env(
+        "OUTPUT_DIR",
+        PROJECT_ROOT / "output",
     )
 
     settings = Settings(
@@ -91,6 +97,7 @@ def load_settings() -> Settings:
             "DEEPSEEK_URL",
             "https://chat.deepseek.com",
         ),
+
         browser_profile_dir=browser_profile_dir,
         output_dir=output_dir,
         headless=_get_bool_env(
@@ -105,6 +112,12 @@ def load_settings() -> Settings:
             "QUICK_MAX_WAIT_SECONDS",
             180,
         ),
+
+        chromium_executable_path=(
+                os.getenv("CHROMIUM_EXECUTABLE_PATH")
+                or None
+        ),
+
         expert_max_wait_seconds=_get_int_env(
             "EXPERT_MAX_WAIT_SECONDS",
             360,
@@ -159,3 +172,22 @@ def _validate_settings(settings: Settings) -> None:
         raise ConfigurationError(
             "NETWORK_RETRY_INTERVAL_SECONDS must be greater than or equal to 0"
         )
+
+
+def _get_path_env(
+        name: str,
+        default: Path,
+) -> Path:
+    """读取路径环境变量，相对路径基于项目根目录解析。"""
+
+    raw_value = os.getenv(name)
+
+    if not raw_value:
+        return default
+
+    path = Path(raw_value)
+
+    if path.is_absolute():
+        return path
+
+    return PROJECT_ROOT / path
