@@ -5,6 +5,7 @@ from app.core.enums import (
     TaskStatus,
     ValidationSeverity,
     ValidationStatus,
+    SourceCollectionStatus,
 )
 
 
@@ -18,7 +19,7 @@ class GeoTask:
 
 
 @dataclass(slots=True)
-class GEOSource:
+class GeoSource:
     """单条 GEO 引用信源。"""
     occurrence_id: str
     order: int
@@ -36,17 +37,22 @@ class GEOSource:
     is_duplicate: bool = False
     duplicate_of: str | None = None
 
+    snippet: str | None = None
+
 
 @dataclass(slots=True)
 class SourceCollection:
-    """一次回答对应的完成信源采集结果。"""
+    """一次回答对应的完整信源采集结果。"""
+
+    status: SourceCollectionStatus = SourceCollectionStatus.NOT_APPLICABLE
+
     declared_count: int = 0
     captured_count: int = 0
     unique_count: int = 0
 
     coverage_ratio: float = 0.0
 
-    sources: list[GEOSource] = field(default_factory=list)
+    sources: list[GeoSource] = field(default_factory=list)
 
 
 @dataclass(slots=True)

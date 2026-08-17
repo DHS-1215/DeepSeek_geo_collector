@@ -9,9 +9,10 @@ from app.core.models import (
     ArtifactInfo,
     FailureInfo,
     GeoRunResult,
-    GEOSource,
+    GeoSource,
     GeoTask,
     SourceCollection,
+    SourceCollectionStatus,
     TimingInfo,
     ValidationIssue,
     ValidationResult,
@@ -32,7 +33,7 @@ def test_geo_task_creation() -> None:
 
 
 def test_geo_source_creation() -> None:
-    source = GEOSource(
+    source = GeoSource(
         occurrence_id="R1_S1",
         order=1,
         title="测试标题",
@@ -52,7 +53,7 @@ def test_source_collection_has_independent_source_list() -> None:
     second = SourceCollection()
 
     first.sources.append(
-        GEOSource(
+        GeoSource(
             occurrence_id="R1_S1",
             order=1,
         )
@@ -148,7 +149,7 @@ def test_geo_run_results_do_not_share_nested_objects() -> None:
     )
 
     result1.sources.sources.append(
-        GEOSource(
+        GeoSource(
             occurrence_id="R1_S1",
             order=1,
         )
@@ -156,3 +157,9 @@ def test_geo_run_results_do_not_share_nested_objects() -> None:
 
     assert len(result1.sources.sources) == 1
     assert len(result2.sources.sources) == 0
+
+
+def test_source_collection_default_status() -> None:
+    collection = SourceCollection()
+
+    assert collection.status == SourceCollectionStatus.NOT_APPLICABLE

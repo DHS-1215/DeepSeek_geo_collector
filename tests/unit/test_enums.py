@@ -4,6 +4,7 @@ from app.core.enums import (
     TaskStatus,
     ValidationSeverity,
     ValidationStatus,
+    SourceCollectionStatus,
 )
 
 
@@ -38,3 +39,10 @@ def test_failure_type_values() -> None:
     assert FailureType.SOURCE_INCOMPLETE.value == "source_incomplete"
     assert FailureType.UI_CHANGED.value == "ui_changed"
 
+
+def test_source_collection_status_values() -> None:
+    assert SourceCollectionStatus.SUCCESS.value == "success"
+    assert SourceCollectionStatus.PARTIAL.value == "partial"
+    assert SourceCollectionStatus.FAILED.value == "failed"
+    assert SourceCollectionStatus.NOT_APPLICABLE.value == "not_applicable"
+    assert SourceCollectionStatus.NOT_SUPPORTED.value == "not_supported"

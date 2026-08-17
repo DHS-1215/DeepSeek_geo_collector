@@ -49,3 +49,13 @@ class FailureType(str, Enum):
     UI_CHANGED = "ui_changed"
     NETWORK_ERROR = "network_error"
     ACQUISITION_FAILED = "acquisition_failed"
+
+
+class SourceCollectionStatus(str, Enum):
+    """信源采集状态。"""
+
+    SUCCESS = "success"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    NOT_APPLICABLE = "not_applicable"
+    NOT_SUPPORTED = "not_supported"
