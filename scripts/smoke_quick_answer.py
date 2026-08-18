@@ -2,6 +2,7 @@ import argparse
 import asyncio
 from datetime import datetime
 
+from app.deepseek.answer_parser import parse_answer
 from app.browser.session import BrowserSession
 from app.core.config import load_settings
 from app.deepseek.answer_waiter import (
@@ -70,8 +71,43 @@ async def main() -> None:
             timeout_seconds=(
                 settings.quick_max_wait_seconds
             ),
+
             stable_seconds=5.0,
         )
+        answer = (
+            deepseek
+            .assistant_messages()
+            .last
+        )
+
+        parsed = await parse_answer(
+            answer
+        )
+
+        print()
+        print("ANSWER COMPLETE")
+        print(
+            "ELAPSED:",
+            result.elapsed_seconds,
+        )
+        print(
+            "RAW LENGTH:",
+            len(parsed.raw_text),
+        )
+        print(
+            "CLEAN LENGTH:",
+            len(parsed.clean_text),
+        )
+        print(
+            "CITATION COUNT:",
+            parsed.citation_count,
+        )
+
+        print()
+        print("=" * 80)
+        print("CLEAN ANSWER")
+        print("=" * 80)
+        print(parsed.clean_text)
 
         print()
         print("ANSWER COMPLETE")

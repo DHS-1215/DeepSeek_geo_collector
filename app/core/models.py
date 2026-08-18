@@ -112,7 +112,8 @@ class GeoRunResult:
 
     batch_id: str | None = None
 
-    answer_text: str = ""
+    answer_text_raw: str = ""
+    answer_text_clean: str = ""
 
     sources: SourceCollection = field(default_factory=SourceCollection)
 

@@ -2,10 +2,9 @@ import hashlib
 import json
 import zipfile
 from pathlib import Path
-from app.core.enums import FailureType
-from app.core.models import FailureInfo
 
 from app.core.enums import (
+    FailureType,
     GeoMode,
     SourceCollectionStatus,
     TaskStatus,
@@ -13,6 +12,7 @@ from app.core.enums import (
 )
 from app.core.models import (
     ArtifactInfo,
+    FailureInfo,
     GeoRunResult,
     GeoSource,
     GeoTask,
@@ -20,6 +20,7 @@ from app.core.models import (
     TimingInfo,
     ValidationResult,
 )
+
 from app.package.exporter import (
     export_geo_package,
 )
@@ -78,9 +79,8 @@ def test_export_single_expert_result(
         run_id="run_001",
         batch_id="batch_test_001",
         task=task,
-        answer_text=(
-            "这是一个用于测试的回答。"
-        ),
+        answer_text_raw="正文-\n2\n。",
+        answer_text_clean="正文。",
         sources=sources,
         timing=TimingInfo(
             started_at=(
@@ -313,7 +313,8 @@ def test_export_quick_result_without_sources(
         run_id="run_quick_001",
         batch_id="batch_quick_001",
         task=task,
-        answer_text="这是 quick 模式回答。",
+        answer_text_raw="正文-\n2\n。",
+        answer_text_clean="正文。",
         sources=SourceCollection(
             status=SourceCollectionStatus.NOT_SUPPORTED,
         ),
@@ -346,6 +347,17 @@ def test_export_quick_result_without_sources(
         )
 
         assert len(answers) == 1
+
+        assert (
+                answers[0]["answer_text_raw"]
+                == "正文-\n2\n。"
+        )
+
+        assert (
+                answers[0]["answer_text_clean"]
+                == "正文。"
+        )
+
         assert sources == []
 
         assert (
@@ -371,7 +383,8 @@ def test_export_failed_result(
         run_id="run_failed_001",
         batch_id="batch_failed_001",
         task=task,
-        answer_text="",
+        answer_text_raw="正文-\n2\n。",
+        answer_text_clean="正文。",
         failure=FailureInfo(
             type=FailureType.ANSWER_TIMEOUT,
             message="answer timed out",
@@ -430,7 +443,8 @@ def test_export_without_screenshot_creates_empty_screenshot_directory(
         provider="deepseek",
         run_id="run_no_screenshot",
         task=task,
-        answer_text="测试回答",
+        answer_text_raw="正文-\n2\n。",
+        answer_text_clean="正文。",
         validation=ValidationResult(
             status=ValidationStatus.PASS,
         ),
@@ -483,7 +497,8 @@ def test_export_deduplicates_tracking_url_sources(
         provider="deepseek",
         run_id="run_duplicate_source",
         task=task,
-        answer_text="测试回答",
+        answer_text_raw="正文-\n2\n。",
+        answer_text_clean="正文。",
         sources=SourceCollection(
             status=SourceCollectionStatus.SUCCESS,
             declared_count=2,

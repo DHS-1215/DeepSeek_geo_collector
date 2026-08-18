@@ -71,7 +71,7 @@ def answer_is_complete(
 
     return bool(
         result.status == TaskStatus.SUCCESS
-        and result.answer_text.strip()
+        and result.answer_text_clean.strip()
         and map_validation_status(
             result.validation
         )

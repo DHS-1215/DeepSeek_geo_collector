@@ -110,7 +110,8 @@ def test_geo_run_result_defaults() -> None:
     assert result.run_id == "run_001"
 
     assert result.batch_id is None
-    assert result.answer_text == ""
+    assert result.answer_text_raw == ""
+    assert result.answer_text_clean == ""
 
     assert result.status == TaskStatus.PENDING
     assert result.validation is None

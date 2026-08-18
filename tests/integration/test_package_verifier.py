@@ -28,7 +28,8 @@ def test_verify_geo_package(
         provider="deepseek",
         run_id="run_001",
         task=task,
-        answer_text="测试回答。",
+        answer_text_raw="测试回答。",
+        answer_text_clean="测试回答。",
         validation=ValidationResult(
             status=ValidationStatus.PASS,
         ),
@@ -69,7 +70,8 @@ def test_verify_rejects_tampered_package(
         provider="deepseek",
         run_id="run_002",
         task=task,
-        answer_text="测试回答。",
+        answer_text_raw="测试回答。",
+        answer_text_clean="测试回答。",
         validation=ValidationResult(
             status=ValidationStatus.PASS,
         ),

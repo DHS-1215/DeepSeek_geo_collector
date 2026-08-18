@@ -150,13 +150,11 @@ def export_geo_package(
                 mode_code=task.mode.value,
                 question_text=task.question,
 
-                # 当前 Core 只有一份 answer_text。
-                # raw / clean 暂时使用相同内容。
                 answer_text_raw=(
-                    result.answer_text
+                    result.answer_text_raw
                 ),
                 answer_text_clean=(
-                    result.answer_text
+                    result.answer_text_clean
                 ),
 
                 acquisition_status=(
@@ -667,7 +665,7 @@ def _build_platform_meta(
                 result.run_id
             ),
             "answer_length": len(
-                result.answer_text
+                result.answer_text_raw
             ),
             "source_count": len(
                 result.sources.sources

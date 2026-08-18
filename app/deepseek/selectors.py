@@ -23,3 +23,5 @@ SEND_BUTTON = (
 ASSISTANT_MESSAGE_MAIN = (
     ".ds-assistant-message-main-content"
 )
+
+CITATION_MARKER = ".ds-markdown-cite"
