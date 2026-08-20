@@ -25,3 +25,18 @@ ASSISTANT_MESSAGE_MAIN = (
 )
 
 CITATION_MARKER = ".ds-markdown-cite"
+
+QUICK_MAIN_MODE = (
+    '[data-model-type="default"]'
+    '[role="radio"]'
+)
+
+EXPERT_MAIN_MODE = (
+    '[data-model-type="expert"]'
+    '[role="radio"]'
+)
+
+VISION_MAIN_MODE = (
+    '[data-model-type="vision"]'
+    '[role="radio"]'
+)

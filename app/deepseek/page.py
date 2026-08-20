@@ -2,18 +2,14 @@ from playwright.async_api import Locator, Page
 
 from app.core.exceptions import UiChangedError
 from app.deepseek.selectors import (
-    DEEP_THINK_TOGGLE,
-    MESSAGE_INPUT,
-    SEND_BUTTON,
-    SMART_SEARCH_TOGGLE,
-)
-
-from app.deepseek.selectors import (
     ASSISTANT_MESSAGE_MAIN,
     DEEP_THINK_TOGGLE,
+    EXPERT_MAIN_MODE,
     MESSAGE_INPUT,
+    QUICK_MAIN_MODE,
     SEND_BUTTON,
     SMART_SEARCH_TOGGLE,
+    VISION_MAIN_MODE,
 )
 
 
@@ -37,6 +33,59 @@ class DeepSeekPage:
         return self._page.locator(
             SMART_SEARCH_TOGGLE
         )
+
+    def quick_main_mode(self) -> Locator:
+        return self._page.locator(
+            QUICK_MAIN_MODE
+        )
+
+    def expert_main_mode(self) -> Locator:
+        return self._page.locator(
+            EXPERT_MAIN_MODE
+        )
+
+    def vision_main_mode(self) -> Locator:
+        return self._page.locator(
+            VISION_MAIN_MODE
+        )
+
+    async def _select_main_mode(
+            self,
+            mode: Locator,
+    ) -> None:
+        if await mode.count() != 1:
+            raise UiChangedError(
+                "DeepSeek main mode could not "
+                "be uniquely located."
+            )
+
+        checked = await mode.get_attribute(
+            "aria-checked"
+        )
+
+        if checked not in {
+            "true",
+            "false",
+        }:
+            raise UiChangedError(
+                "DeepSeek main mode has invalid "
+                "aria-checked state."
+            )
+
+        if checked == "true":
+            return
+
+        await mode.click()
+
+        actual = await mode.get_attribute(
+            "aria-checked"
+        )
+
+        if actual != "true":
+            raise UiChangedError(
+                "DeepSeek main mode did not "
+                "change as expected."
+            )
 
     async def ensure_ready(self) -> None:
         """确认 DeepSeek 输入区域已经可用。"""
@@ -100,7 +149,11 @@ class DeepSeekPage:
             )
 
     async def set_quick_mode(self) -> None:
-        """Quick：搜索开启，深度思考关闭。"""
+        """切换到 Quick 模式。"""
+
+        await self._select_main_mode(
+            self.quick_main_mode()
+        )
 
         await self._set_toggle(
             self.smart_search_toggle(),
@@ -113,16 +166,10 @@ class DeepSeekPage:
         )
 
     async def set_expert_mode(self) -> None:
-        """Expert：搜索开启，深度思考开启。"""
+        """切换到 Expert 模式。"""
 
-        await self._set_toggle(
-            self.smart_search_toggle(),
-            True,
-        )
-
-        await self._set_toggle(
-            self.deep_think_toggle(),
-            True,
+        await self._select_main_mode(
+            self.expert_main_mode()
         )
 
     async def fill_question(
