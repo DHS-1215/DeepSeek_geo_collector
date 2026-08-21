@@ -177,9 +177,6 @@ def export_geo_package(
 
                 source_count_raw=(
                     len(result.sources.sources)
-                    if task.mode
-                       == GeoMode.EXPERT
-                    else 0
                 ),
 
                 screenshot_path=(
@@ -198,8 +195,6 @@ def export_geo_package(
             )
         )
 
-        if task.mode != GeoMode.EXPERT:
-            continue
 
         seen_canonical_urls: set[str] = (
             set()

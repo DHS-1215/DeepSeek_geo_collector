@@ -18,6 +18,30 @@ TRACKING_KEYS = {
     "share_token",
 }
 
+from urllib.parse import (
+    urlsplit,
+    urlunsplit,
+)
+
+
+def normalize_url(
+        url: str | None,
+) -> str | None:
+    if not url:
+        return None
+
+    parts = urlsplit(url)
+
+    return urlunsplit(
+        (
+            parts.scheme.lower(),
+            parts.netloc.lower(),
+            parts.path.rstrip("/"),
+            "",
+            "",
+        )
+    )
+
 
 def normalize_raw_url(url: Any) -> str:
     """对原始 URL 做最小规范化，但保留业务 query 参数。"""

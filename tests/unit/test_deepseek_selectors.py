@@ -7,6 +7,11 @@ from app.deepseek.selectors import (
     SEND_BUTTON,
     SMART_SEARCH_TOGGLE,
     VISION_MAIN_MODE,
+    SOURCE_CARD,
+    SOURCE_CARD_ORDER,
+    SOURCE_CARD_SITE_ICON,
+    SOURCE_CARD_SNIPPET,
+    SOURCE_CARD_TITLE,
 )
 
 
@@ -20,6 +25,11 @@ def test_deepseek_selectors_do_not_use_hashed_classes() -> None:
         QUICK_MAIN_MODE,
         EXPERT_MAIN_MODE,
         VISION_MAIN_MODE,
+        SOURCE_CARD,
+        SOURCE_CARD_TITLE,
+        SOURCE_CARD_SNIPPET,
+        SOURCE_CARD_ORDER,
+        SOURCE_CARD_SITE_ICON,
     ]
 
     hashed_classes = [
@@ -45,3 +55,35 @@ def test_main_mode_selectors_use_semantic_attributes() -> None:
     assert 'role="radio"' in QUICK_MAIN_MODE
     assert 'role="radio"' in EXPERT_MAIN_MODE
     assert 'role="radio"' in VISION_MAIN_MODE
+
+
+def test_quick_source_selectors_use_semantic_classes() -> None:
+    assert (
+            ".search-view-card__title"
+            in SOURCE_CARD
+    )
+
+    assert (
+            ".search-view-card__snippet"
+            in SOURCE_CARD
+    )
+
+    assert (
+            SOURCE_CARD_TITLE
+            == ".search-view-card__title"
+    )
+
+    assert (
+            SOURCE_CARD_SNIPPET
+            == ".search-view-card__snippet"
+    )
+
+    assert (
+            SOURCE_CARD_ORDER
+            == ".ds-markdown-cite"
+    )
+
+    assert (
+            SOURCE_CARD_SITE_ICON
+            == "img.site_logo_img"
+    )

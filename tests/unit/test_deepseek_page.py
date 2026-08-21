@@ -253,3 +253,23 @@ def test_set_quick_mode_selects_main_mode_and_toggles(
             False,
         ),
     ]
+
+
+def test_source_cards_returns_locator():
+    page = MagicMock()
+
+    deepseek = DeepSeekPage(page)
+
+    locator = deepseek.source_cards()
+
+    page.locator.assert_called_once()
+
+
+def test_read_webpages_indicator_returns_locator():
+    page = MagicMock()
+
+    deepseek = DeepSeekPage(page)
+
+    deepseek.read_webpages_indicator()
+
+    page.get_by_text.assert_called_once()

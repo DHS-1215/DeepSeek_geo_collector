@@ -6,6 +6,8 @@ from app.package.source_utils import (
     normalize_raw_url,
 )
 
+from app.package.source_utils import normalize_url
+
 
 def test_normalize_raw_url() -> None:
     result = normalize_raw_url(
@@ -154,3 +156,28 @@ def test_source_order_conflict_raises_error() -> None:
             "batch_001",
             rows,
         )
+
+
+def test_normalize_url() -> None:
+    assert (
+            normalize_url(
+                "HTTP://Example.COM/test/?a=1"
+            )
+            == "http://example.com/test"
+    )
+
+
+def test_normalize_url_removes_query() -> None:
+    assert (
+            normalize_url(
+                "https://example.com/page?id=1"
+            )
+            == "https://example.com/page"
+    )
+
+
+def test_normalize_url_none() -> None:
+    assert (
+            normalize_url(None)
+            is None
+    )

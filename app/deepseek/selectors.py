@@ -40,3 +40,33 @@ VISION_MAIN_MODE = (
     '[data-model-type="vision"]'
     '[role="radio"]'
 )
+
+# Quick 模式完整来源列表。
+SOURCE_CARD = (
+    "a:"
+    "has(.search-view-card__title):"
+    "has(.search-view-card__snippet)"
+)
+
+SOURCE_CARD_TITLE = (
+    ".search-view-card__title"
+)
+
+SOURCE_CARD_SNIPPET = (
+    ".search-view-card__snippet"
+)
+
+SOURCE_CARD_ORDER = (
+    ".ds-markdown-cite"
+)
+
+SOURCE_CARD_SITE_ICON = (
+    "img.site_logo_img"
+)
+
+SOURCE_CARD_SITE_NAME = (
+    "a:"
+    "has(.search-view-card__title):"
+    "span"
+    "div:first-child span"
+)

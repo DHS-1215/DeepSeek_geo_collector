@@ -1,3 +1,4 @@
+import re
 from playwright.async_api import Locator, Page
 
 from app.core.exceptions import UiChangedError
@@ -10,6 +11,7 @@ from app.deepseek.selectors import (
     SEND_BUTTON,
     SMART_SEARCH_TOGGLE,
     VISION_MAIN_MODE,
+    SOURCE_CARD,
 )
 
 
@@ -226,4 +228,26 @@ class DeepSeekPage:
 
         return self._page.locator(
             ASSISTANT_MESSAGE_MAIN
+        )
+
+    async def wait_for(
+            self,
+            milliseconds: int,
+    ) -> None:
+        """等待页面状态稳定。"""
+
+        await self._page.wait_for_timeout(
+            milliseconds
+        )
+
+    def source_cards(self) -> Locator:
+        return self._page.locator(
+            SOURCE_CARD
+        )
+
+    def read_webpages_indicator(self) -> Locator:
+        return self._page.get_by_text(
+            re.compile(
+                r"已阅读\s*\d+\s*个网页"
+            )
         )

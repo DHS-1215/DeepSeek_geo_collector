@@ -26,7 +26,7 @@ def map_task_status(status: TaskStatus) -> str:
 
 
 def map_validation_status(
-    validation: ValidationResult | None,
+        validation: ValidationResult | None,
 ) -> str:
     """映射为 geo_package_v1 validation_status。"""
 
@@ -44,7 +44,7 @@ def map_validation_status(
 
 
 def map_acquisition_status(
-    result: GeoRunResult,
+        result: GeoRunResult,
 ) -> str:
     """映射采集状态。"""
 
@@ -52,12 +52,12 @@ def map_acquisition_status(
         return "success"
 
     if (
-        result.failure is not None
-        and result.failure.type
-        in {
-            FailureType.CAPTCHA,
-            FailureType.RISK_CONTROL,
-        }
+            result.failure is not None
+            and result.failure.type
+            in {
+        FailureType.CAPTCHA,
+        FailureType.RISK_CONTROL,
+    }
     ):
         return "risk_control"
 
@@ -65,7 +65,7 @@ def map_acquisition_status(
 
 
 def answer_is_complete(
-    result: GeoRunResult,
+        result: GeoRunResult,
 ) -> bool:
     """判断回答是否完整有效。"""
 
@@ -83,13 +83,10 @@ def answer_is_complete(
 
 
 def map_source_status(
-    mode: GeoMode,
-    sources: SourceCollection,
+        mode: GeoMode,
+        sources: SourceCollection,
 ) -> str:
     """映射信源采集状态。"""
-
-    if mode == GeoMode.QUICK:
-        return "not_supported"
 
     mapping = {
         SourceCollectionStatus.SUCCESS: "success",
