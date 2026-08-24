@@ -29,6 +29,9 @@ from app.deepseek.page import DeepSeekPage
 from app.deepseek.source_collector import (
     collect_sources,
 )
+from app.validation.validator import (
+    validate_run_result,
+)
 
 
 async def run_deepseek_task(
@@ -83,15 +86,21 @@ async def run_deepseek_task(
 
             await deepseek.submit_question()
 
-            result = await wait_for_new_answer(
-                page,
-                previous_answer_count=previous_count,
-                timeout_seconds=(
-                    settings.quick_max_wait_seconds
-                    if task.mode == GeoMode.QUICK
-                    else settings.expert_max_wait_seconds
-                ),
-                stable_seconds=10.0,
+            answer_wait_result = (
+                await wait_for_new_answer(
+                    page,
+                    previous_answer_count=(
+                        previous_count
+                    ),
+                    timeout_seconds=(
+                        settings.quick_max_wait_seconds
+                        if task.mode
+                           == GeoMode.QUICK
+                        else
+                        settings.expert_max_wait_seconds
+                    ),
+                    stable_seconds=10.0,
+                )
             )
 
             answer_locator = (
@@ -118,7 +127,7 @@ async def run_deepseek_task(
                 datetime.now().isoformat()
             )
 
-            return GeoRunResult(
+            run_result = GeoRunResult(
                 provider="deepseek",
                 run_id=run_id,
                 task=task,
@@ -140,12 +149,21 @@ async def run_deepseek_task(
                     started_at=started_at,
                     finished_at=finished_at,
                     elapsed_seconds=(
-                        result.elapsed_seconds
+                        answer_wait_result
+                        .elapsed_seconds
                     ),
                 ),
 
                 status=TaskStatus.SUCCESS,
             )
+
+            run_result.validation = (
+                validate_run_result(
+                    run_result
+                )
+            )
+
+            return run_result
 
     except Exception as exc:
 
@@ -166,7 +184,7 @@ async def run_deepseek_task(
             failure_type
         )
 
-        return GeoRunResult(
+        run_result = GeoRunResult(
             provider="deepseek",
             run_id=run_id,
             task=task,
@@ -182,3 +200,11 @@ async def run_deepseek_task(
 
             status=TaskStatus.FAILED,
         )
+
+        run_result.validation = (
+            validate_run_result(
+                run_result
+            )
+        )
+
+        return run_result
