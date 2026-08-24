@@ -181,3 +181,15 @@ def test_normalize_url_none() -> None:
             normalize_url(None)
             is None
     )
+
+
+def test_canonicalize_url_removes_source_tracking_parameter() -> None:
+    result = canonicalize_url(
+        "https://example.com/page"
+        "?id=123"
+        "&source=share"
+    )
+
+    assert result == (
+        "https://example.com/page?id=123"
+    )

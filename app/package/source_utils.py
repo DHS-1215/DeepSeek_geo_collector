@@ -9,19 +9,20 @@ from urllib.parse import (
     urlunsplit,
 )
 
-TRACKING_PREFIXES = ("utm_",)
-
-TRACKING_KEYS = {
-    "from",
-    "spm",
-    "scene",
-    "share_token",
-}
-
 from urllib.parse import (
     urlsplit,
     urlunsplit,
 )
+
+TRACKING_PREFIXES = ("utm_",)
+
+TRACKING_KEYS = {
+    "from",
+    "source",
+    "spm",
+    "scene",
+    "share_token",
+}
 
 
 def normalize_url(
