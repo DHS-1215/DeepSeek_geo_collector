@@ -23,6 +23,7 @@ from app.deepseek.artifact import (
 )
 from app.deepseek.error_classifier import (
     classify_failure,
+    is_retryable_failure,
 )
 from app.deepseek.page import DeepSeekPage
 from app.deepseek.source_collector import (
@@ -161,6 +162,10 @@ async def run_deepseek_task(
             exc
         )
 
+        retryable = is_retryable_failure(
+            failure_type
+        )
+
         return GeoRunResult(
             provider="deepseek",
             run_id=run_id,
@@ -172,7 +177,7 @@ async def run_deepseek_task(
             failure=FailureInfo(
                 type=failure_type,
                 message=str(exc),
-                retryable=False,
+                retryable=retryable,
             ),
 
             status=TaskStatus.FAILED,

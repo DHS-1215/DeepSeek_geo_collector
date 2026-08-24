@@ -20,11 +20,6 @@ async def capture_artifacts(
             / run_id
     )
 
-    print(
-        "ARTIFACT DIR:",
-        artifact_dir
-    )
-
     artifact_dir.mkdir(
         parents=True,
         exist_ok=True,

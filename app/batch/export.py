@@ -18,12 +18,8 @@ def export_batch_package(
 
     return export_geo_package(
         batch_id=result.batch_id,
-
         results=result.results,
-
         output_dir=output_dir,
-
         product_id=product_id,
-
         product_name=product_name,
     )

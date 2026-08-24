@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 from app.core.exceptions import ConfigurationError
@@ -8,8 +9,13 @@ from app.core.exceptions import ConfigurationError
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def _get_bool_env(name: str, default: bool) -> bool:
-    """读取布尔类型环境变量。"""
+def _get_bool_env(
+        name: str,
+        default: bool,
+) -> bool:
+    """
+    读取布尔类型环境变量。
+    """
 
     raw_value = os.getenv(name)
 
@@ -18,19 +24,35 @@ def _get_bool_env(name: str, default: bool) -> bool:
 
     normalized = raw_value.strip().lower()
 
-    if normalized in {"1", "true", "yes", "on"}:
+    if normalized in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
         return True
 
-    if normalized in {"0", "false", "no", "off"}:
+    if normalized in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }:
         return False
 
     raise ConfigurationError(
-        f"Invalid boolean environment variable: {name}={raw_value!r}"
+        "Invalid boolean environment variable: "
+        f"{name}={raw_value!r}"
     )
 
 
-def _get_int_env(name: str, default: int) -> int:
-    """读取整数类型环境变量。"""
+def _get_int_env(
+        name: str,
+        default: int,
+) -> int:
+    """
+    读取整数类型环境变量。
+    """
 
     raw_value = os.getenv(name)
 
@@ -39,15 +61,22 @@ def _get_int_env(name: str, default: int) -> int:
 
     try:
         return int(raw_value)
+
     except ValueError as exc:
         raise ConfigurationError(
-            f"Invalid integer environment variable: {name}={raw_value!r}"
+            "Invalid integer environment variable: "
+            f"{name}={raw_value!r}"
         ) from exc
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(
+    frozen=True,
+    slots=True,
+)
 class Settings:
-    """DeepSeek GEO Collector 运行配置。"""
+    """
+    DeepSeek GEO Collector 运行配置。
+    """
 
     deepseek_url: str
 
@@ -64,6 +93,8 @@ class Settings:
     network_retry_times: int
     network_retry_interval_seconds: int
 
+    task_interval_seconds: int
+
     save_raw_html_on_error: bool
 
     log_level: str
@@ -72,9 +103,13 @@ class Settings:
 
 
 def load_settings(
-        env_file: Path | None = PROJECT_ROOT / ".env",
+        env_file: Path | None = (
+                PROJECT_ROOT / ".env"
+        ),
 ) -> Settings:
-    """读取项目配置。"""
+    """
+    读取项目配置。
+    """
 
     if env_file is not None:
         load_dotenv(
@@ -98,79 +133,146 @@ def load_settings(
             "https://chat.deepseek.com",
         ),
 
-        browser_profile_dir=browser_profile_dir,
+        browser_profile_dir=(
+            browser_profile_dir
+        ),
+
         output_dir=output_dir,
+
         headless=_get_bool_env(
             "HEADLESS",
             False,
         ),
-        default_timeout_seconds=_get_int_env(
-            "DEFAULT_TIMEOUT_SECONDS",
-            30,
-        ),
-        quick_max_wait_seconds=_get_int_env(
-            "QUICK_MAX_WAIT_SECONDS",
-            180,
+
+        default_timeout_seconds=(
+            _get_int_env(
+                "DEFAULT_TIMEOUT_SECONDS",
+                30,
+            )
         ),
 
-        chromium_executable_path=(
-                os.getenv("CHROMIUM_EXECUTABLE_PATH")
-                or None
+        quick_max_wait_seconds=(
+            _get_int_env(
+                "QUICK_MAX_WAIT_SECONDS",
+                180,
+            )
         ),
 
-        expert_max_wait_seconds=_get_int_env(
-            "EXPERT_MAX_WAIT_SECONDS",
-            360,
+        expert_max_wait_seconds=(
+            _get_int_env(
+                "EXPERT_MAX_WAIT_SECONDS",
+                360,
+            )
         ),
-        network_retry_times=_get_int_env(
-            "NETWORK_RETRY_TIMES",
-            2,
+
+        network_retry_times=(
+            _get_int_env(
+                "NETWORK_RETRY_TIMES",
+                2,
+            )
         ),
-        network_retry_interval_seconds=_get_int_env(
-            "NETWORK_RETRY_INTERVAL_SECONDS",
-            3,
+
+        network_retry_interval_seconds=(
+            _get_int_env(
+                "NETWORK_RETRY_INTERVAL_SECONDS",
+                3,
+            )
         ),
-        save_raw_html_on_error=_get_bool_env(
-            "SAVE_RAW_HTML_ON_ERROR",
-            True,
+
+        task_interval_seconds=(
+            _get_int_env(
+                "TASK_INTERVAL_SECONDS",
+                3,
+            )
         ),
+
+        save_raw_html_on_error=(
+            _get_bool_env(
+                "SAVE_RAW_HTML_ON_ERROR",
+                True,
+            )
+        ),
+
         log_level=os.getenv(
             "LOG_LEVEL",
             "INFO",
         ).upper(),
+
+        chromium_executable_path=(
+                os.getenv(
+                    "CHROMIUM_EXECUTABLE_PATH"
+                )
+                or None
+        ),
     )
 
-    _validate_settings(settings)
+    _validate_settings(
+        settings
+    )
 
     return settings
 
 
-def _validate_settings(settings: Settings) -> None:
-    """检查配置值是否处于合理范围。"""
+def _validate_settings(
+        settings: Settings,
+) -> None:
+    """
+    检查配置值是否处于合理范围。
+    """
 
-    if settings.default_timeout_seconds <= 0:
+    if (
+            settings.default_timeout_seconds
+            <= 0
+    ):
         raise ConfigurationError(
-            "DEFAULT_TIMEOUT_SECONDS must be greater than 0"
+            "DEFAULT_TIMEOUT_SECONDS "
+            "must be greater than 0"
         )
 
-    if settings.quick_max_wait_seconds <= 0:
+    if (
+            settings.quick_max_wait_seconds
+            <= 0
+    ):
         raise ConfigurationError(
-            "QUICK_MAX_WAIT_SECONDS must be greater than 0"
+            "QUICK_MAX_WAIT_SECONDS "
+            "must be greater than 0"
         )
 
-    if settings.expert_max_wait_seconds <= 0:
+    if (
+            settings.expert_max_wait_seconds
+            <= 0
+    ):
         raise ConfigurationError(
-            "EXPERT_MAX_WAIT_SECONDS must be greater than 0"
+            "EXPERT_MAX_WAIT_SECONDS "
+            "must be greater than 0"
         )
 
-    if settings.network_retry_times < 0:
+    if (
+            settings.network_retry_times
+            < 0
+    ):
         raise ConfigurationError(
-            "NETWORK_RETRY_TIMES must be greater than or equal to 0"
+            "NETWORK_RETRY_TIMES "
+            "must be greater than or equal to 0"
         )
 
-    if settings.network_retry_interval_seconds < 0:
+    if (
+            settings
+                    .network_retry_interval_seconds
+            < 0
+    ):
         raise ConfigurationError(
-            "NETWORK_RETRY_INTERVAL_SECONDS must be greater than or equal to 0"
+            "NETWORK_RETRY_INTERVAL_SECONDS "
+            "must be greater than or equal to 0"
+        )
+
+    if (
+            settings.task_interval_seconds
+            < 0
+    ):
+        raise ConfigurationError(
+            "TASK_INTERVAL_SECONDS "
+            "must be greater than or equal to 0"
         )
 
 
@@ -178,16 +280,27 @@ def _get_path_env(
         name: str,
         default: Path,
 ) -> Path:
-    """读取路径环境变量，相对路径基于项目根目录解析。"""
+    """
+    读取路径环境变量。
 
-    raw_value = os.getenv(name)
+    相对路径基于项目根目录解析。
+    """
+
+    raw_value = os.getenv(
+        name
+    )
 
     if not raw_value:
         return default
 
-    path = Path(raw_value)
+    path = Path(
+        raw_value
+    )
 
     if path.is_absolute():
         return path
 
-    return PROJECT_ROOT / path
+    return (
+            PROJECT_ROOT
+            / path
+    )

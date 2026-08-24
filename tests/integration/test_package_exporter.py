@@ -26,7 +26,7 @@ from app.package.exporter import (
 )
 
 
-def test_export_single_expert_result(
+def test_export_single_quick_result_with_sources(
         tmp_path: Path,
 ) -> None:
     screenshot = (
@@ -38,10 +38,10 @@ def test_export_single_expert_result(
     )
 
     task = GeoTask(
-        task_id="Q001_expert",
+        task_id="Q001_quick",
         question_id="Q001",
         question="鸿茅药酒是什么？",
-        mode=GeoMode.EXPERT,
+        mode=GeoMode.QUICK,
     )
 
     source = GeoSource(
@@ -152,7 +152,7 @@ def test_export_single_expert_result(
 
         assert (
                 "screenshots/"
-                "Q001_expert.png"
+                "Q001_quick.png"
                 in names
         )
 
@@ -225,7 +225,7 @@ def test_export_single_expert_result(
                 answers[0]["answer_id"]
                 == (
                     "batch_test_001_"
-                    "Q001_expert"
+                    "Q001_quick"
                 )
         )
 
@@ -298,14 +298,14 @@ def _read_jsonl(
     ]
 
 
-def test_export_quick_result_without_sources(
+def test_export_expert_result_without_sources(
         tmp_path: Path,
 ) -> None:
     task = GeoTask(
-        task_id="Q001_quick",
+        task_id="Q001_expert",
         question_id="Q001",
-        question="测试 quick 问题",
-        mode=GeoMode.QUICK,
+        question="测试 Expert 问题",
+        mode=GeoMode.EXPERT,
     )
 
     result = GeoRunResult(
@@ -316,7 +316,7 @@ def test_export_quick_result_without_sources(
         answer_text_raw="正文-\n2\n。",
         answer_text_clean="正文。",
         sources=SourceCollection(
-            status=SourceCollectionStatus.NOT_SUPPORTED,
+            status=SourceCollectionStatus.NOT_APPLICABLE,
         ),
         timing=TimingInfo(
             started_at="2026-08-17T09:00:00",
@@ -472,10 +472,10 @@ def test_export_deduplicates_tracking_url_sources(
         tmp_path: Path,
 ) -> None:
     task = GeoTask(
-        task_id="Q004_expert",
+        task_id="Q004_quick",
         question_id="Q004",
         question="重复信源测试",
-        mode=GeoMode.EXPERT,
+        mode=GeoMode.QUICK,
     )
 
     source1 = GeoSource(

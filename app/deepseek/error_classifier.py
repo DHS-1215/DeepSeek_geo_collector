@@ -37,3 +37,16 @@ def classify_failure(
         return FailureType.UI_CHANGED
 
     return FailureType.ACQUISITION_FAILED
+
+
+def is_retryable_failure(
+        failure_type: FailureType,
+) -> bool:
+    """
+    判断指定失败类型是否适合自动重试。
+    """
+
+    return failure_type in {
+        FailureType.NETWORK_ERROR,
+        FailureType.ANSWER_TIMEOUT,
+    }

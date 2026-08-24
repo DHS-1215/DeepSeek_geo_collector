@@ -24,7 +24,7 @@ class BatchTask:
     """
     批处理中的单个任务。
 
-    一个 BatchTask 最终会转换成一个 GeoTask
+    一个 BatchTask 最终会转换成一个 GeoTask，
     并交给 DeepSeek Runner 执行。
     """
 

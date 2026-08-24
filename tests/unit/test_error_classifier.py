@@ -1,6 +1,7 @@
 from app.core.enums import FailureType
 from app.deepseek.error_classifier import (
     classify_failure,
+    is_retryable_failure,
 )
 
 
@@ -54,3 +55,15 @@ def test_unknown_error_maps_to_default():
             result
             == FailureType.ACQUISITION_FAILED
     )
+
+
+def test_network_error_is_retryable():
+    assert is_retryable_failure(
+        FailureType.NETWORK_ERROR
+    ) is True
+
+
+def test_ui_changed_is_not_retryable():
+    assert is_retryable_failure(
+        FailureType.UI_CHANGED
+    ) is False

@@ -109,30 +109,35 @@ def test_runner_captures_artifact_when_page_failure(
     )
 
     assert (
-            result.status
-            == TaskStatus.FAILED
+        result.status
+        == TaskStatus.FAILED
     )
 
     assert result.failure is not None
 
     assert (
-            result.failure.type
-            == FailureType.ACQUISITION_FAILED
+        result.failure.type
+        == FailureType.ACQUISITION_FAILED
     )
 
     assert (
-            result.failure.message
-            == "forced failure"
+        result.failure.message
+        == "forced failure"
     )
 
     assert (
-            result.artifacts.screenshot_path
-            == "output/artifacts/test/page.png"
+        result.failure.retryable
+        is False
     )
 
     assert (
-            result.artifacts.raw_html_path
-            == "output/artifacts/test/page.html"
+        result.artifacts.screenshot_path
+        == "output/artifacts/test/page.png"
+    )
+
+    assert (
+        result.artifacts.raw_html_path
+        == "output/artifacts/test/page.html"
     )
 
     capture_artifacts.assert_awaited_once()
@@ -203,30 +208,149 @@ def test_runner_skips_artifact_when_browser_fails(
     )
 
     assert (
-            result.status
-            == TaskStatus.FAILED
+        result.status
+        == TaskStatus.FAILED
     )
 
     assert result.failure is not None
 
     assert (
-            result.failure.type
-            == FailureType.ACQUISITION_FAILED
+        result.failure.type
+        == FailureType.ACQUISITION_FAILED
     )
 
     assert (
-            result.failure.message
-            == "browser failed"
+        result.failure.message
+        == "browser failed"
+    )
+
+    assert (
+        result.failure.retryable
+        is False
     )
 
     capture_artifacts.assert_not_awaited()
 
     assert (
-            result.artifacts.screenshot_path
-            is None
+        result.artifacts.screenshot_path
+        is None
     )
 
     assert (
-            result.artifacts.raw_html_path
-            is None
+        result.artifacts.raw_html_path
+        is None
     )
+
+
+def test_runner_marks_timeout_as_retryable(
+        monkeypatch,
+) -> None:
+    import app.deepseek.runner as runner
+
+    settings = MagicMock()
+    settings.deepseek_url = (
+        "https://chat.deepseek.com"
+    )
+    settings.output_dir = Path(
+        "output"
+    )
+
+    monkeypatch.setattr(
+        runner,
+        "load_settings",
+        MagicMock(
+            return_value=settings
+        ),
+    )
+
+    page = MagicMock()
+    page.goto = AsyncMock()
+
+    session = MagicMock()
+    session.page = page
+
+    browser_session = MagicMock()
+    browser_session.__aenter__ = AsyncMock(
+        return_value=session
+    )
+    browser_session.__aexit__ = AsyncMock(
+        return_value=None
+    )
+
+    monkeypatch.setattr(
+        runner,
+        "BrowserSession",
+        MagicMock(
+            return_value=browser_session
+        ),
+    )
+
+    deepseek = MagicMock()
+
+    deepseek.ensure_ready = AsyncMock(
+        side_effect=TimeoutError(
+            "answer timed out"
+        )
+    )
+
+    monkeypatch.setattr(
+        runner,
+        "DeepSeekPage",
+        MagicMock(
+            return_value=deepseek
+        ),
+    )
+
+    artifacts = ArtifactInfo(
+        screenshot_path=(
+            "output/artifacts/timeout/page.png"
+        ),
+        raw_html_path=(
+            "output/artifacts/timeout/page.html"
+        ),
+    )
+
+    capture_artifacts = AsyncMock(
+        return_value=artifacts
+    )
+
+    monkeypatch.setattr(
+        runner,
+        "capture_artifacts",
+        capture_artifacts,
+    )
+
+    task = GeoTask(
+        task_id="test_timeout",
+        question_id="Q002",
+        question="超时测试问题",
+        mode=GeoMode.QUICK,
+    )
+
+    result = asyncio.run(
+        run_deepseek_task(task)
+    )
+
+    assert (
+        result.status
+        == TaskStatus.FAILED
+    )
+
+    assert result.failure is not None
+
+    assert (
+        result.failure.type
+        == FailureType.ANSWER_TIMEOUT
+    )
+
+    assert (
+        result.failure.message
+        == "answer timed out"
+    )
+
+    assert (
+        result.failure.retryable
+        is True
+    )
+
+    capture_artifacts.assert_awaited_once()

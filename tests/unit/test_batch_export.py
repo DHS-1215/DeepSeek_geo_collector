@@ -20,8 +20,8 @@ def test_export_batch_package(
         called.update(kwargs)
 
         return (
-                tmp_path
-                / "test.zip"
+            tmp_path
+            / "test.zip"
         )
 
     monkeypatch.setattr(
@@ -43,16 +43,26 @@ def test_export_batch_package(
     assert output.name == "test.zip"
 
     assert (
-            called["batch_id"]
-            == "batch_001"
+        called["batch_id"]
+        == "batch_001"
     )
 
     assert (
-            called["results"]
-            == []
+        called["results"]
+        == []
     )
 
     assert (
-            called["product_id"]
-            == "test_product"
+        called["output_dir"]
+        == tmp_path
+    )
+
+    assert (
+        called["product_id"]
+        == "test_product"
+    )
+
+    assert (
+        called["product_name"]
+        == "测试产品"
     )
