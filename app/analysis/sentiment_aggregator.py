@@ -1,3 +1,4 @@
+import asyncio
 from app.analysis.models import (
     MentionBatchResult,
     MentionTarget,
@@ -11,6 +12,14 @@ from app.analysis.models import (
 from app.analysis.sentiment import (
     SentimentClassifier,
     analyze_sentiment,
+    analyze_sentiment_with_provider,
+)
+from app.analysis.sentiment_config import (
+    SentimentConfig,
+)
+from app.analysis.sentiment_providers import (
+    RETRYABLE_SENTIMENT_ERROR_TYPES,
+    SentimentModelProvider,
 )
 from app.core.enums import GeoMode
 from app.core.models import GeoRunResult
@@ -102,6 +111,264 @@ async def analyze_batch_sentiment(
                 task_sentiments,
             )
         )
+
+    return _build_batch_result(
+        details=details,
+        analysis_rows=analysis_rows,
+        targets=targets,
+    )
+
+
+async def analyze_batch_sentiment_with_provider(
+        *,
+        results: list[GeoRunResult],
+        mention_batch: MentionBatchResult,
+        targets: list[MentionTarget],
+        provider: SentimentModelProvider,
+        config: SentimentConfig,
+) -> SentimentBatchResult:
+    """
+    使用正式模型 Provider 执行 Batch Sentiment。
+
+    与轻量 analyze_batch_sentiment 的区别：
+    - 使用生产 Provider
+    - 支持 retry
+    - Context / Prompt / Validation / Rules
+      已由 analyze_sentiment_with_provider 负责
+
+    Retry 只针对：
+    - rate_limit
+    - transient_api_error
+    - timeout
+    - network_error
+    """
+
+    _validate_targets(
+        targets
+    )
+
+    details: dict[
+        str,
+        dict[
+            str,
+            SentimentResult,
+        ],
+    ] = {}
+
+    analysis_rows: list[
+        tuple[
+            GeoRunResult,
+            dict[
+                str,
+                SentimentResult,
+            ],
+        ]
+    ] = []
+
+    for result in results:
+        task_id = result.task.task_id
+
+        mention = (
+            mention_batch.details.get(
+                task_id
+            )
+        )
+
+        if mention is None:
+            raise ValueError(
+                "missing mention result for task: "
+                f"{task_id}"
+            )
+
+        task_sentiments: dict[
+            str,
+            SentimentResult,
+        ] = {}
+
+        for target in targets:
+            sentiment = (
+                await _analyze_sentiment_with_retry(
+                    result=result,
+                    mention=mention,
+                    target=target,
+                    provider=provider,
+                    config=config,
+                )
+            )
+
+            task_sentiments[
+                target.target_id
+            ] = sentiment
+
+        details[
+            task_id
+        ] = task_sentiments
+
+        analysis_rows.append(
+            (
+                result,
+                task_sentiments,
+            )
+        )
+
+    return _build_batch_result(
+        details=details,
+        analysis_rows=analysis_rows,
+        targets=targets,
+    )
+
+
+async def _analyze_sentiment_with_retry(
+        *,
+        result: GeoRunResult,
+        mention,
+        target: MentionTarget,
+        provider: SentimentModelProvider,
+        config: SentimentConfig,
+) -> SentimentResult:
+    """
+    单目标生产分析 + 外层 Retry。
+
+    max_retries=2 表示：
+        首次请求 + 最多2次重试
+        = 最多3次 Provider 请求。
+    """
+
+    attempt_count = 0
+
+    accumulated_latencies: list[
+        float
+    ] = []
+
+    while True:
+        attempt_count += 1
+
+        sentiment = (
+            await analyze_sentiment_with_provider(
+                result=result,
+                mention=mention,
+                target=target,
+                provider=provider,
+                config=config,
+            )
+        )
+
+        if (
+                sentiment.status
+                == SentimentStatus.NOT_APPLICABLE
+        ):
+            return sentiment
+
+        for latency in (
+                sentiment.request_latencies
+        ):
+            accumulated_latencies.append(
+                latency
+            )
+
+        sentiment.attempt_count = (
+            attempt_count
+        )
+
+        sentiment.request_count = (
+            attempt_count
+        )
+
+        sentiment.request_latencies = list(
+            accumulated_latencies
+        )
+
+        if (
+                sentiment.error_type
+                not in RETRYABLE_SENTIMENT_ERROR_TYPES
+        ):
+            return sentiment
+
+        retries_used = (
+                attempt_count - 1
+        )
+
+        if (
+                retries_used
+                >= config.max_retries
+        ):
+            return sentiment
+
+        delay_seconds = (
+            _retry_delay_seconds(
+                config=config,
+                retry_index=retries_used,
+            )
+        )
+
+        if delay_seconds > 0:
+            await asyncio.sleep(
+                delay_seconds
+            )
+
+
+def _retry_delay_seconds(
+        *,
+        config: SentimentConfig,
+        retry_index: int,
+) -> float:
+    """
+    获取第 N 次 retry 的 backoff。
+
+    例如：
+        retry_backoff_seconds=(3, 8)
+
+    第1次 retry -> 3秒
+    第2次 retry -> 8秒
+
+    如果 retry 次数超过配置长度，
+    后续继续使用最后一个值。
+    """
+
+    backoffs = (
+        config.retry_backoff_seconds
+    )
+
+    if not backoffs:
+        return 0.0
+
+    if retry_index < len(
+            backoffs
+    ):
+        return float(
+            backoffs[
+                retry_index
+            ]
+        )
+
+    return float(
+        backoffs[-1]
+    )
+
+
+def _build_batch_result(
+        *,
+        details: dict[
+            str,
+            dict[
+                str,
+                SentimentResult,
+            ],
+        ],
+        analysis_rows: list[
+            tuple[
+                GeoRunResult,
+                dict[
+                    str,
+                    SentimentResult,
+                ],
+            ]
+        ],
+        targets: list[MentionTarget],
+) -> SentimentBatchResult:
+    """
+    统一构建四套 Sentiment 汇总。
+    """
 
     summaries: dict[
         str,
