@@ -1,5 +1,17 @@
 from pathlib import Path
 
+from app.analysis.exporter import (
+    export_analysis_json,
+)
+
+from app.analysis.export_serialization import (
+    build_analysis_document,
+)
+
+from app.analysis.verifier import (
+    verify_analysis_file,
+)
+
 from app.analysis.models import (
     GeoAnalysisResult,
     MentionTarget,
@@ -130,6 +142,38 @@ async def run_collection_pipeline(
         package_path
     )
 
+    analysis_document = build_analysis_document(
+        batch_id=batch_id,
+        product_id=product_id,
+        product_name=product_name,
+        analysis=analysis_result,
+        results=batch_result.results,
+    )
+
+    analysis_path = (
+            output_dir
+            /
+            f"geo_analysis_{batch_id}.json"
+    )
+
+    export_analysis_json(
+        document=analysis_document,
+        output_path=analysis_path,
+    )
+
+    analysis_verification = verify_analysis_file(
+        analysis_path
+    )
+
+    if not analysis_verification.passed:
+        raise ValueError(
+            "analysis verification failed: "
+            +
+            "; ".join(
+                analysis_verification.errors
+            )
+        )
+
     status = (
         PipelineStatus.PASS_WITH_WARNINGS
         if (
@@ -147,6 +191,8 @@ async def run_collection_pipeline(
         analysis_result=analysis_result,
         package_path=package_path,
         package_verified=True,
+        analysis_path=analysis_path,
+        analysis_verified=True,
     )
 
 

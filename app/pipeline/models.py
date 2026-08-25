@@ -47,3 +47,7 @@ class PipelineResult:
     package_path: Path
 
     package_verified: bool
+
+    analysis_path: Path | None = None
+
+    analysis_verified: bool = False

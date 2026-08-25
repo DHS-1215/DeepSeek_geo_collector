@@ -65,6 +65,10 @@ def build_analysis_document(
             "product_name": product_name,
         },
 
+        "metrics": _serialize_metrics(
+            analysis
+        ),
+
         "source_mode": (
             analysis.source_mode.value
         ),
@@ -773,3 +777,28 @@ def _validate_identity(
             raise ValueError(
                 f"{field_name} cannot be empty"
             )
+
+
+def _serialize_metrics(
+        analysis: GeoAnalysisResult,
+) -> dict[str, Any]:
+    return {
+        "targets": {
+            target_id: {
+                "mention_rate": {
+                    "quick": summary.quick.mention_rate,
+                    "expert": summary.expert.mention_rate,
+                    "all": summary.all_answers.mention_rate,
+                    "question": summary.question_level.mention_rate,
+                },
+                "non_negative_rate": {
+                    "quick": analysis.sentiment.summaries[target_id].quick.non_negative_rate,
+                    "expert": analysis.sentiment.summaries[target_id].expert.non_negative_rate,
+                    "all": analysis.sentiment.summaries[target_id].all_answers.non_negative_rate,
+                    "question": analysis.sentiment.summaries[target_id].question_level.non_negative_rate,
+                },
+            }
+            for target_id, summary in analysis.mention.summaries.items()
+        },
+        "source_top10_rate": analysis.sources.top10_share,
+    }

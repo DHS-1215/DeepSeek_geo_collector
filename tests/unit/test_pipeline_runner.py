@@ -5,6 +5,16 @@ from unittest.mock import (
     Mock,
 )
 
+from app.core.enums import (
+    GeoMode,
+    TaskStatus,
+)
+
+from app.core.models import (
+    GeoRunResult,
+    GeoTask,
+)
+
 import pytest
 
 import app.pipeline.runner as pipeline_runner_module
@@ -25,7 +35,7 @@ from app.batch.models import (
     BatchResult,
     BatchStatus,
 )
-from app.core.enums import GeoMode
+
 from app.pipeline.models import (
     PipelineStatus,
 )
@@ -77,12 +87,28 @@ def test_run_collection_pipeline_success(
         object(),
     ]
 
+    task = GeoTask(
+        task_id="Q001_quick",
+        question_id="Q001",
+        question="测试问题",
+        mode=GeoMode.QUICK,
+    )
+
     batch_result = BatchResult(
-        batch_id="batch_001",
+        batch_id="batch_003",
         status=BatchStatus.SUCCESS,
-        total_count=2,
-        success_count=2,
+        total_count=1,
+        success_count=1,
         failed_count=0,
+        results=[
+            GeoRunResult(
+                provider="test",
+                run_id="run_001",
+                task=task,
+                batch_id="batch_003",
+                status=TaskStatus.SUCCESS,
+            )
+        ],
     )
 
     analysis_result = (
@@ -416,13 +442,21 @@ def test_build_analysis_targets_rejects_empty_values(
             )
         )
 
+
 def test_pipeline_warns_when_sentiment_analysis_fails(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
 ) -> None:
     tasks = [
         object()
     ]
+
+    task = GeoTask(
+        task_id="Q001_quick",
+        question_id="Q001",
+        question="测试问题",
+        mode=GeoMode.QUICK,
+    )
 
     batch_result = BatchResult(
         batch_id="batch_003",
@@ -430,6 +464,15 @@ def test_pipeline_warns_when_sentiment_analysis_fails(
         total_count=1,
         success_count=1,
         failed_count=0,
+        results=[
+            GeoRunResult(
+                provider="test",
+                run_id="run_001",
+                task=task,
+                batch_id="batch_003",
+                status=TaskStatus.SUCCESS,
+            )
+        ],
     )
 
     analysis_result = GeoAnalysisResult(
@@ -462,8 +505,8 @@ def test_pipeline_warns_when_sentiment_analysis_fails(
     )
 
     package_path = (
-        tmp_path
-        / "geo_package.zip"
+            tmp_path
+            / "geo_package.zip"
     )
 
     monkeypatch.setattr(
@@ -528,12 +571,12 @@ def test_pipeline_warns_when_sentiment_analysis_fails(
     )
 
     assert (
-        batch_result.failed_count
-        == 0
+            batch_result.failed_count
+            == 0
     )
 
     assert (
-        result.status
-        == PipelineStatus
-        .PASS_WITH_WARNINGS
+            result.status
+            == PipelineStatus
+            .PASS_WITH_WARNINGS
     )
