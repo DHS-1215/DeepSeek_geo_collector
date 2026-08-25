@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 
 class SentimentLabel(str, Enum):
@@ -17,11 +18,17 @@ class SentimentLabel(str, Enum):
 class SentimentStatus(str, Enum):
     """
     单条情感分析执行状态。
+    与豆包 GEO Sentiment 状态语义保持一致。
     """
 
     SUCCESS = "success"
-    SUCCESS_WITH_WARNINGS = "success_with_warnings"
+    SUCCESS_WITH_WARNINGS = (
+        "success_with_warnings"
+    )
+
     FAILED = "failed"
+    RATE_LIMITED = "rate_limited"
+    TIMEOUT = "timeout"
     NOT_APPLICABLE = "not_applicable"
 
 
@@ -80,14 +87,102 @@ class MentionResult:
 
 
 @dataclass(slots=True)
+class TargetContext:
+    """
+    Sentiment 分析使用的目标上下文。
+
+    matched_aliases:
+        实际命中的目标名称/别名。
+
+    context_spans:
+        alias 在原始回答中的位置及所在句。
+    """
+
+    target_context: str = ""
+
+    matched_aliases: list[str] = field(
+        default_factory=list
+    )
+
+    context_spans: list[
+        dict[str, int | str]
+    ] = field(
+        default_factory=list
+    )
+
+
+@dataclass(slots=True)
+class ModelResponse:
+    """
+    Sentiment Provider 的一次模型响应。
+
+    Provider 负责单次请求；
+    Retry 由上层 orchestration 负责。
+    """
+
+    payload: dict[
+        str,
+        Any,
+    ] = field(
+        default_factory=dict
+    )
+
+    latency_seconds: float | None = None
+
+    prompt_tokens: int | None = None
+
+    completion_tokens: int | None = None
+
+    total_tokens: int | None = None
+
+    raw_content: str | None = None
+
+    response_json_keys: list[str] = field(
+        default_factory=list
+    )
+
+    request_started_at: str | None = None
+
+    request_finished_at: str | None = None
+
+
+@dataclass(slots=True)
 class SentimentResult:
     """
-    一个目标品牌在一条回答中的情感分析结果。
+    一个目标品牌在一条回答中的完整情感分析结果。
+
+    model_sentiment:
+        模型原始分类结果。
+
+    final_sentiment:
+        经过业务规则修正后的最终分类结果。
+
+    GEO 中正率必须使用 final_sentiment。
     """
 
     target_id: str
 
     status: SentimentStatus
+
+    target_name: str | None = None
+
+    mentioned: bool = False
+
+    matched_aliases: list[str] = field(
+        default_factory=list
+    )
+
+    target_context: str = ""
+
+    context_spans: list[
+        dict[str, int | str]
+    ] = field(
+        default_factory=list
+    )
+
+    model_sentiment: (
+            SentimentLabel | None
+    ) = None
 
     final_sentiment: (
             SentimentLabel | None
@@ -95,7 +190,86 @@ class SentimentResult:
 
     reason: str | None = None
 
+    evidence: list[str] = field(
+        default_factory=list
+    )
+
+    confidence: float | None = None
+
     provider: str | None = None
+
+    model_name: str | None = None
+
+    prompt_version: str | None = None
+
+    rule_version: str | None = None
+
+    override_rule_codes: list[str] = field(
+        default_factory=list
+    )
+
+    override_reason: str | None = None
+
+    rule_hit: bool = False
+
+    rule_override: bool = False
+
+    override_applied: bool = False
+
+    suppressed_rule_candidates: list[
+        dict[str, Any]
+    ] = field(
+        default_factory=list
+    )
+
+    warnings: list[str] = field(
+        default_factory=list
+    )
+
+    schema_coercion_applied: bool = False
+
+    schema_coercion_fields: dict[
+        str,
+        str,
+    ] = field(
+        default_factory=dict
+    )
+
+    confidence_raw: Any = None
+
+    confidence_missing: bool = False
+
+    confidence_fallback_applied: bool = False
+
+    error_type: str | None = None
+
+    error_code: str | None = None
+
+    error_message: str | None = None
+
+    attempt_count: int = 0
+
+    request_count: int = 0
+
+    request_latencies: list[float] = field(
+        default_factory=list
+    )
+
+    retried: bool = False
+
+    latency_seconds: float | None = None
+
+    prompt_tokens: int | None = None
+
+    completion_tokens: int | None = None
+
+    total_tokens: int | None = None
+
+    response_raw_content: str | None = None
+
+    response_json_keys: list[str] = field(
+        default_factory=list
+    )
 
 
 @dataclass(slots=True)
