@@ -121,6 +121,112 @@ async def run_cli(
         f"{summary.success_rate:.2%}",
     )
 
+    print("-" * 80)
+    print("GEO ANALYSIS")
+    print("-" * 80)
+
+    analysis = (
+        result.analysis_result
+    )
+
+    mention_summary = (
+        analysis
+        .mention
+        .summaries[
+            args.product_id
+        ]
+    )
+
+    sentiment_summary = (
+        analysis
+        .sentiment
+        .summaries[
+            args.product_id
+        ]
+    )
+
+    print(
+        "ANALYSIS TARGET:",
+        args.product_name,
+    )
+
+    print(
+        "MENTION RATE (QUICK):",
+        f"{mention_summary.quick.mention_rate:.2%}",
+    )
+
+    print(
+        "MENTION RATE (EXPERT):",
+        f"{mention_summary.expert.mention_rate:.2%}",
+    )
+
+    print(
+        "MENTION RATE (ALL):",
+        f"{mention_summary.all_answers.mention_rate:.2%}",
+    )
+
+    print(
+        "MENTION RATE (QUESTION):",
+        f"{mention_summary.question_level.mention_rate:.2%}",
+    )
+
+    print(
+        "NON-NEGATIVE RATE (QUICK):",
+        (
+            f"{sentiment_summary.quick.non_negative_rate:.2%}"
+        ),
+    )
+
+    print(
+        "NON-NEGATIVE RATE (EXPERT):",
+        (
+            f"{sentiment_summary.expert.non_negative_rate:.2%}"
+        ),
+    )
+
+    print(
+        "NON-NEGATIVE RATE (ALL):",
+        (
+            f"{sentiment_summary.all_answers.non_negative_rate:.2%}"
+        ),
+    )
+
+    print(
+        "NON-NEGATIVE RATE (QUESTION):",
+        (
+            f"{sentiment_summary.question_level.non_negative_rate:.2%}"
+        ),
+    )
+
+    print(
+        "SENTIMENT FAILED (ALL):",
+        (
+            sentiment_summary
+            .all_answers
+            .classification_failed_count
+        ),
+    )
+
+    print(
+        "SOURCE MODE:",
+        analysis.source_mode.value,
+    )
+
+    print(
+        "SOURCE TOP10 RATE:",
+        f"{analysis.sources.top10_share:.2%}",
+    )
+
+    print(
+        "SOURCE OCCURRENCES:",
+        analysis.sources.total_occurrences,
+    )
+
+    print(
+        "SOURCE TOP10 OCCURRENCES:",
+        analysis.sources.top10_occurrences,
+    )
+
     print(
         "PACKAGE:",
         result.package_path,

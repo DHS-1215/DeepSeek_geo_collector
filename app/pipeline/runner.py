@@ -1,7 +1,9 @@
 from pathlib import Path
 
 from app.analysis.models import (
+    GeoAnalysisResult,
     MentionTarget,
+    SentimentStatus,
 )
 from app.analysis.runner import (
     run_geo_analysis,
@@ -34,18 +36,18 @@ from app.pipeline.models import (
 
 
 async def run_collection_pipeline(
-    *,
-    csv_path: Path,
-    batch_id: str,
-    output_dir: Path,
-    product_id: str,
-    product_name: str,
-    sentiment_provider: (
-        SentimentModelProvider | None
-    ) = None,
-    sentiment_config: (
-        SentimentConfig | None
-    ) = None,
+        *,
+        csv_path: Path,
+        batch_id: str,
+        output_dir: Path,
+        product_id: str,
+        product_name: str,
+        sentiment_provider: (
+                SentimentModelProvider | None
+        ) = None,
+        sentiment_config: (
+                SentimentConfig | None
+        ) = None,
 ) -> PipelineResult:
     """
     执行完整的 DeepSeek GEO Pipeline。
@@ -130,7 +132,12 @@ async def run_collection_pipeline(
 
     status = (
         PipelineStatus.PASS_WITH_WARNINGS
-        if batch_result.failed_count > 0
+        if (
+                batch_result.failed_count > 0
+                or _analysis_has_warnings(
+            analysis_result
+        )
+        )
         else PipelineStatus.PASS
     )
 
@@ -144,9 +151,9 @@ async def run_collection_pipeline(
 
 
 def build_analysis_targets(
-    *,
-    product_id: str,
-    product_name: str,
+        *,
+        product_id: str,
+        product_name: str,
 ) -> list[MentionTarget]:
     """
     根据 Pipeline 产品参数构造默认 GEO 分析目标。
@@ -186,3 +193,51 @@ def build_analysis_targets(
             ],
         )
     ]
+
+
+def _analysis_has_warnings(
+        analysis_result: GeoAnalysisResult,
+) -> bool:
+    """
+    判断 Analysis 是否存在需要提升
+    Pipeline 状态为 PASS_WITH_WARNINGS
+    的问题。
+
+    当前规则：
+
+    以下 Sentiment 状态属于正常结果：
+    - SUCCESS
+    - SUCCESS_WITH_WARNINGS
+    - NOT_APPLICABLE
+
+    以下情况属于分析失败：
+    - FAILED
+    - RATE_LIMITED
+    - TIMEOUT
+
+    提及率和 Source Top10 当前都是本地确定性分析，
+    不单独产生 Pipeline Warning。
+    """
+
+    acceptable_statuses = {
+        SentimentStatus.SUCCESS,
+        SentimentStatus.SUCCESS_WITH_WARNINGS,
+        SentimentStatus.NOT_APPLICABLE,
+    }
+
+    for task_results in (
+            analysis_result
+                    .sentiment
+                    .details
+                    .values()
+    ):
+        for sentiment in (
+                task_results.values()
+        ):
+            if (
+                    sentiment.status
+                    not in acceptable_statuses
+            ):
+                return True
+
+    return False

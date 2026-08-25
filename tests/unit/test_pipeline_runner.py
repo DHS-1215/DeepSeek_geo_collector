@@ -15,6 +15,8 @@ from app.analysis.models import (
     MentionTarget,
     SentimentBatchResult,
     SourceTop10Summary,
+    SentimentResult,
+    SentimentStatus,
 )
 from app.analysis.sentiment_config import (
     SentimentConfig,
@@ -413,3 +415,125 @@ def test_build_analysis_targets_rejects_empty_values(
                 product_name=product_name,
             )
         )
+
+def test_pipeline_warns_when_sentiment_analysis_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    tasks = [
+        object()
+    ]
+
+    batch_result = BatchResult(
+        batch_id="batch_003",
+        status=BatchStatus.SUCCESS,
+        total_count=1,
+        success_count=1,
+        failed_count=0,
+    )
+
+    analysis_result = GeoAnalysisResult(
+        mention=MentionBatchResult(),
+
+        sentiment=SentimentBatchResult(
+            details={
+                "Q001_quick": {
+                    "hongmao_yaojiu": (
+                        SentimentResult(
+                            target_id=(
+                                "hongmao_yaojiu"
+                            ),
+                            status=(
+                                SentimentStatus
+                                .TIMEOUT
+                            ),
+                            error_type=(
+                                "timeout"
+                            ),
+                        )
+                    )
+                }
+            }
+        ),
+
+        sources=SourceTop10Summary(),
+
+        source_mode=GeoMode.QUICK,
+    )
+
+    package_path = (
+        tmp_path
+        / "geo_package.zip"
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "load_batch_tasks",
+        Mock(
+            return_value=tasks
+        ),
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "run_batch",
+        AsyncMock(
+            return_value=batch_result
+        ),
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "run_geo_analysis",
+        AsyncMock(
+            return_value=(
+                analysis_result
+            )
+        ),
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "export_batch_package",
+        Mock(
+            return_value=(
+                package_path
+            )
+        ),
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "verify_geo_package",
+        Mock(),
+    )
+
+    result = asyncio.run(
+        pipeline_runner_module
+        .run_collection_pipeline(
+            csv_path=Path(
+                "input/tasks.csv"
+            ),
+            batch_id="batch_003",
+            output_dir=tmp_path,
+            product_id=(
+                "hongmao_yaojiu"
+            ),
+            product_name="鸿茅药酒",
+            sentiment_provider=object(),
+            sentiment_config=(
+                SentimentConfig()
+            ),
+        )
+    )
+
+    assert (
+        batch_result.failed_count
+        == 0
+    )
+
+    assert (
+        result.status
+        == PipelineStatus
+        .PASS_WITH_WARNINGS
+    )

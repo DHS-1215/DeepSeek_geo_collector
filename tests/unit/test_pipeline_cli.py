@@ -19,9 +19,14 @@ from app.pipeline.models import (
 from app.analysis.models import (
     GeoAnalysisResult,
     MentionBatchResult,
+    MentionSummary,
     SentimentBatchResult,
+    SentimentSummary,
     SourceTop10Summary,
+    TargetMentionSummary,
+    TargetSentimentSummary,
 )
+
 from app.core.enums import GeoMode
 
 
@@ -51,9 +56,106 @@ def _build_pipeline_result(
     )
 
     analysis_result = GeoAnalysisResult(
-        mention=MentionBatchResult(),
-        sentiment=SentimentBatchResult(),
-        sources=SourceTop10Summary(),
+        mention=MentionBatchResult(
+            summaries={
+                "product_001": (
+                    TargetMentionSummary(
+                        target_id=(
+                            "product_001"
+                        ),
+                        target_name=(
+                            "测试产品"
+                        ),
+                        quick=MentionSummary(
+                            valid_count=2,
+                            mentioned_count=1,
+                            mention_rate=0.5,
+                        ),
+                        expert=MentionSummary(
+                            valid_count=2,
+                            mentioned_count=2,
+                            mention_rate=1.0,
+                        ),
+                        all_answers=MentionSummary(
+                            valid_count=4,
+                            mentioned_count=3,
+                            mention_rate=0.75,
+                        ),
+                        question_level=(
+                            MentionSummary(
+                                valid_count=2,
+                                mentioned_count=2,
+                                mention_rate=1.0,
+                            )
+                        ),
+                    )
+                )
+            }
+        ),
+
+        sentiment=SentimentBatchResult(
+            summaries={
+                "product_001": (
+                    TargetSentimentSummary(
+                        target_id=(
+                            "product_001"
+                        ),
+                        target_name=(
+                            "测试产品"
+                        ),
+                        quick=SentimentSummary(
+                            planned_mention_count=1,
+                            classified_mention_count=1,
+                            positive_count=0,
+                            neutral_count=1,
+                            negative_count=0,
+                            non_negative_count=1,
+                            non_negative_rate=1.0,
+                        ),
+                        expert=SentimentSummary(
+                            planned_mention_count=2,
+                            classified_mention_count=2,
+                            positive_count=1,
+                            neutral_count=0,
+                            negative_count=1,
+                            non_negative_count=1,
+                            non_negative_rate=0.5,
+                        ),
+                        all_answers=SentimentSummary(
+                            planned_mention_count=3,
+                            classified_mention_count=3,
+                            positive_count=1,
+                            neutral_count=1,
+                            negative_count=1,
+                            non_negative_count=2,
+                            non_negative_rate=(
+                                    2 / 3
+                            ),
+                        ),
+                        question_level=(
+                            SentimentSummary(
+                                planned_mention_count=2,
+                                classified_mention_count=2,
+                                positive_count=1,
+                                neutral_count=0,
+                                negative_count=1,
+                                non_negative_count=1,
+                                non_negative_rate=0.5,
+                            )
+                        ),
+                    )
+                )
+            }
+        ),
+
+        sources=SourceTop10Summary(
+            total_occurrences=10,
+            top10_occurrences=8,
+            top10_share=0.8,
+            outside_top10_occurrences=2,
+            outside_top10_share=0.2,
+        ),
+
         source_mode=GeoMode.QUICK,
     )
 
@@ -236,3 +338,73 @@ def test_main_returns_three_for_package_verification_error(
     )
 
     assert exit_code == 3
+
+
+def test_cli_prints_geo_analysis_metrics(
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        cli_module,
+        "run_collection_pipeline",
+        AsyncMock(
+            return_value=(
+                _build_pipeline_result(
+                    status=(
+                        PipelineStatus.PASS
+                    ),
+                )
+            )
+        ),
+    )
+
+    exit_code = cli_module.main(
+        [
+            "--csv",
+            "input/tasks.csv",
+            "--batch-id",
+            "batch_001",
+            "--product-id",
+            "product_001",
+            "--product-name",
+            "测试产品",
+        ]
+    )
+
+    assert exit_code == 0
+
+    output = (
+        capsys
+        .readouterr()
+        .out
+    )
+
+    assert (
+            "MENTION RATE (QUICK): 50.00%"
+            in output
+    )
+
+    assert (
+            "MENTION RATE (ALL): 75.00%"
+            in output
+    )
+
+    assert (
+            "NON-NEGATIVE RATE (QUICK): 100.00%"
+            in output
+    )
+
+    assert (
+            "NON-NEGATIVE RATE (ALL): 66.67%"
+            in output
+    )
+
+    assert (
+            "SOURCE TOP10 RATE: 80.00%"
+            in output
+    )
+
+    assert (
+            "SOURCE OCCURRENCES: 10"
+            in output
+    )
