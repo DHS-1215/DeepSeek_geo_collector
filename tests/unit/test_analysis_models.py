@@ -15,7 +15,9 @@ from app.analysis.models import (
     TargetSentimentSummary,
     ModelResponse,
     TargetContext,
+    GeoAnalysisResult
 )
+from app.core.enums import GeoMode
 
 
 def test_sentiment_label_values() -> None:
@@ -435,4 +437,41 @@ def test_sentiment_result_diagnostic_defaults() -> None:
     assert (
             result.schema_coercion_fields
             == {}
+    )
+
+
+def test_geo_analysis_result_holds_all_analysis_layers() -> None:
+    mention = MentionBatchResult()
+
+    sentiment = SentimentBatchResult()
+
+    sources = SourceTop10Summary(
+        total_occurrences=10,
+        top10_occurrences=8,
+        top10_share=0.8,
+        outside_top10_occurrences=2,
+        outside_top10_share=0.2,
+    )
+
+    result = GeoAnalysisResult(
+        mention=mention,
+        sentiment=sentiment,
+        sources=sources,
+        source_mode=GeoMode.QUICK,
+    )
+
+    assert result.mention is mention
+
+    assert result.sentiment is sentiment
+
+    assert result.sources is sources
+
+    assert (
+            result.source_mode
+            == GeoMode.QUICK
+    )
+
+    assert (
+            result.sources.top10_share
+            == 0.8
     )

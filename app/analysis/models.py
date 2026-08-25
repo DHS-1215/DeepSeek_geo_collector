@@ -1,3 +1,4 @@
+from app.core.enums import GeoMode
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -505,3 +506,33 @@ class BatchAnalysisSummary:
     sources: SourceTop10Summary = field(
         default_factory=SourceTop10Summary
     )
+
+
+@dataclass(slots=True)
+class GeoAnalysisResult:
+    """
+    一次完整 GEO Analysis 的统一结果。
+
+    mention:
+        提及分析及四套提及率口径。
+
+    sentiment:
+        情感分析及四套中正率口径。
+
+    sources:
+        Source Top10 及业务信源率。
+
+    source_mode:
+        当前 Source Top10 使用的数据模式。
+
+        DeepSeek 当前正式口径为 QUICK，
+        因为 Expert 不提供 Sources。
+    """
+
+    mention: MentionBatchResult
+
+    sentiment: SentimentBatchResult
+
+    sources: SourceTop10Summary
+
+    source_mode: GeoMode = GeoMode.QUICK
