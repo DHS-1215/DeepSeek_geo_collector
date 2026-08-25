@@ -3,6 +3,14 @@ from app.core.enums import (
     TaskStatus,
 )
 
+from app.core.enums import (
+    ValidationStatus,
+)
+
+from app.core.models import (
+    ValidationResult,
+)
+
 from app.core.models import (
     GeoRunResult,
     GeoSource,
@@ -156,6 +164,14 @@ def build_replay_results(
                 status=(
                     TaskStatus.SUCCESS
                 ),
+
+                validation=ValidationResult(
+                    status=ValidationStatus(
+                        answer.validation_status
+                    ),
+                    is_complete=answer.is_complete,
+                )
+
             )
         )
 
