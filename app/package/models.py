@@ -150,3 +150,20 @@ class PackageChecksums:
     """checksums.json 数据结构。"""
 
     files: dict[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class PackageReadResult:
+    """
+    geo_package 读取结果。
+    """
+
+    manifest: PackageManifest
+
+    tasks: list[PackageTaskRow]
+
+    answers: list[PackageAnswerRow]
+
+    sources: list[PackageSourceRow]
+
+    checksums: PackageChecksums
