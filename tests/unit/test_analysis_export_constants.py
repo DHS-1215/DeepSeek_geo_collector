@@ -22,6 +22,3 @@ def test_analysis_export_defaults() -> None:
         DEFAULT_ANALYSIS_PLATFORM_CODE
         == "deepseek"
     )
-
-
-
