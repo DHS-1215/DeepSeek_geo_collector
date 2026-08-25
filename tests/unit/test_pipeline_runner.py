@@ -8,13 +8,62 @@ from unittest.mock import (
 import pytest
 
 import app.pipeline.runner as pipeline_runner_module
+
+from app.analysis.models import (
+    GeoAnalysisResult,
+    MentionBatchResult,
+    MentionTarget,
+    SentimentBatchResult,
+    SourceTop10Summary,
+)
+from app.analysis.sentiment_config import (
+    SentimentConfig,
+)
 from app.batch.models import (
     BatchResult,
     BatchStatus,
 )
+from app.core.enums import GeoMode
 from app.pipeline.models import (
     PipelineStatus,
 )
+
+
+def _analysis_result() -> GeoAnalysisResult:
+    return GeoAnalysisResult(
+        mention=MentionBatchResult(),
+        sentiment=SentimentBatchResult(),
+        sources=SourceTop10Summary(),
+        source_mode=GeoMode.QUICK,
+    )
+
+
+def test_build_analysis_targets() -> None:
+    targets = (
+        pipeline_runner_module
+        .build_analysis_targets(
+            product_id="hongmao_yaojiu",
+            product_name="鸿茅药酒",
+        )
+    )
+
+    assert len(targets) == 1
+
+    target = targets[0]
+
+    assert (
+            target.target_id
+            == "hongmao_yaojiu"
+    )
+
+    assert (
+            target.name
+            == "鸿茅药酒"
+    )
+
+    assert target.aliases == [
+        "鸿茅药酒"
+    ]
 
 
 def test_run_collection_pipeline_success(
@@ -34,6 +83,10 @@ def test_run_collection_pipeline_success(
         failed_count=0,
     )
 
+    analysis_result = (
+        _analysis_result()
+    )
+
     package_path = (
             tmp_path
             / "geo_package_deepseek_batch_001.zip"
@@ -45,6 +98,10 @@ def test_run_collection_pipeline_success(
 
     run_mock = AsyncMock(
         return_value=batch_result
+    )
+
+    analysis_mock = AsyncMock(
+        return_value=analysis_result
     )
 
     export_mock = Mock(
@@ -67,6 +124,12 @@ def test_run_collection_pipeline_success(
 
     monkeypatch.setattr(
         pipeline_runner_module,
+        "run_geo_analysis",
+        analysis_mock,
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
         "export_batch_package",
         export_mock,
     )
@@ -77,6 +140,12 @@ def test_run_collection_pipeline_success(
         verify_mock,
     )
 
+    sentiment_provider = object()
+
+    sentiment_config = (
+        SentimentConfig()
+    )
+
     result = asyncio.run(
         pipeline_runner_module
         .run_collection_pipeline(
@@ -85,8 +154,16 @@ def test_run_collection_pipeline_success(
             ),
             batch_id="batch_001",
             output_dir=tmp_path,
-            product_id="product_001",
-            product_name="测试产品",
+            product_id=(
+                "hongmao_yaojiu"
+            ),
+            product_name="鸿茅药酒",
+            sentiment_provider=(
+                sentiment_provider
+            ),
+            sentiment_config=(
+                sentiment_config
+            ),
         )
     )
 
@@ -101,6 +178,11 @@ def test_run_collection_pipeline_success(
     )
 
     assert (
+            result.analysis_result
+            is analysis_result
+    )
+
+    assert (
             result.package_path
             == package_path
     )
@@ -112,6 +194,37 @@ def test_run_collection_pipeline_success(
 
     run_mock.assert_awaited_once_with(
         tasks
+    )
+
+    analysis_mock.assert_awaited_once_with(
+        results=batch_result.results,
+        targets=[
+            MentionTarget(
+                target_id=(
+                    "hongmao_yaojiu"
+                ),
+                name="鸿茅药酒",
+                aliases=[
+                    "鸿茅药酒"
+                ],
+            )
+        ],
+        sentiment_provider=(
+            sentiment_provider
+        ),
+        sentiment_config=(
+            sentiment_config
+        ),
+        source_mode=GeoMode.QUICK,
+    )
+
+    export_mock.assert_called_once_with(
+        result=batch_result,
+        output_dir=tmp_path,
+        product_id=(
+            "hongmao_yaojiu"
+        ),
+        product_name="鸿茅药酒",
     )
 
     verify_mock.assert_called_once_with(
@@ -159,6 +272,16 @@ def test_run_collection_pipeline_returns_warning_status(
 
     monkeypatch.setattr(
         pipeline_runner_module,
+        "run_geo_analysis",
+        AsyncMock(
+            return_value=(
+                _analysis_result()
+            )
+        ),
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
         "export_batch_package",
         Mock(
             return_value=package_path
@@ -179,18 +302,26 @@ def test_run_collection_pipeline_returns_warning_status(
             ),
             batch_id="batch_002",
             output_dir=tmp_path,
-            product_id="product_001",
-            product_name="测试产品",
+            product_id=(
+                "hongmao_yaojiu"
+            ),
+            product_name="鸿茅药酒",
+            sentiment_provider=object(),
+            sentiment_config=(
+                SentimentConfig()
+            ),
         )
     )
 
     assert (
             result.status
-            == PipelineStatus.PASS_WITH_WARNINGS
+            == PipelineStatus
+            .PASS_WITH_WARNINGS
     )
 
     assert (
-            result.batch_result.failed_count
+            result.batch_result
+            .failed_count
             == 1
     )
 
@@ -200,6 +331,8 @@ def test_run_collection_pipeline_rejects_empty_batch(
         tmp_path: Path,
 ) -> None:
     run_mock = AsyncMock()
+
+    analysis_mock = AsyncMock()
 
     monkeypatch.setattr(
         pipeline_runner_module,
@@ -215,6 +348,12 @@ def test_run_collection_pipeline_rejects_empty_batch(
         run_mock,
     )
 
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "run_geo_analysis",
+        analysis_mock,
+    )
+
     with pytest.raises(
             ValueError,
             match="contains no tasks",
@@ -227,9 +366,50 @@ def test_run_collection_pipeline_rejects_empty_batch(
                 ),
                 batch_id="batch_empty",
                 output_dir=tmp_path,
-                product_id="product_001",
-                product_name="测试产品",
+                product_id=(
+                    "hongmao_yaojiu"
+                ),
+                product_name="鸿茅药酒",
             )
         )
 
     run_mock.assert_not_awaited()
+
+    analysis_mock.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    (
+            "product_id",
+            "product_name",
+            "error_message",
+    ),
+    [
+        (
+                "",
+                "鸿茅药酒",
+                "product_id cannot be empty",
+        ),
+        (
+                "hongmao_yaojiu",
+                "",
+                "product_name cannot be empty",
+        ),
+    ],
+)
+def test_build_analysis_targets_rejects_empty_values(
+        product_id: str,
+        product_name: str,
+        error_message: str,
+) -> None:
+    with pytest.raises(
+            ValueError,
+            match=error_message,
+    ):
+        (
+            pipeline_runner_module
+            .build_analysis_targets(
+                product_id=product_id,
+                product_name=product_name,
+            )
+        )

@@ -16,6 +16,14 @@ from app.pipeline.models import (
     PipelineStatus,
 )
 
+from app.analysis.models import (
+    GeoAnalysisResult,
+    MentionBatchResult,
+    SentimentBatchResult,
+    SourceTop10Summary,
+)
+from app.core.enums import GeoMode
+
 
 def _build_pipeline_result(
         *,
@@ -42,9 +50,17 @@ def _build_pipeline_result(
         failed_count=failed_count,
     )
 
+    analysis_result = GeoAnalysisResult(
+        mention=MentionBatchResult(),
+        sentiment=SentimentBatchResult(),
+        sources=SourceTop10Summary(),
+        source_mode=GeoMode.QUICK,
+    )
+
     return PipelineResult(
         status=status,
         batch_result=batch_result,
+        analysis_result=analysis_result,
         package_path=Path(
             "output/package/test.zip"
         ),
