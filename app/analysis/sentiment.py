@@ -45,19 +45,19 @@ class SentimentClassifier(Protocol):
     """
 
     async def classify(
-        self,
-        *,
-        answer_text: str,
-        target: MentionTarget,
+            self,
+            *,
+            answer_text: str,
+            target: MentionTarget,
     ) -> SentimentLabel | str:
         ...
 
 
 def should_classify_sentiment(
-    *,
-    result: GeoRunResult,
-    mention: MentionResult,
-    target_id: str,
+        *,
+        result: GeoRunResult,
+        mention: MentionResult,
+        target_id: str,
 ) -> bool:
     """
     判断一个目标是否需要执行情感分类。
@@ -84,17 +84,17 @@ def should_classify_sentiment(
         return False
 
     return (
-        target_result.mention_count
-        > 0
+            target_result.mention_count
+            > 0
     )
 
 
 async def analyze_sentiment(
-    *,
-    result: GeoRunResult,
-    mention: MentionResult,
-    target: MentionTarget,
-    classifier: SentimentClassifier,
+        *,
+        result: GeoRunResult,
+        mention: MentionResult,
+        target: MentionTarget,
+        classifier: SentimentClassifier,
 ) -> SentimentResult:
     """
     轻量单条 Sentiment 分析。
@@ -103,9 +103,9 @@ async def analyze_sentiment(
     """
 
     if not should_classify_sentiment(
-        result=result,
-        mention=mention,
-        target_id=target.target_id,
+            result=result,
+            mention=mention,
+            target_id=target.target_id,
     ):
         return SentimentResult(
             target_id=target.target_id,
@@ -159,12 +159,12 @@ async def analyze_sentiment(
 
 
 async def analyze_sentiment_with_provider(
-    *,
-    result: GeoRunResult,
-    mention: MentionResult,
-    target: MentionTarget,
-    provider: SentimentModelProvider,
-    config: SentimentConfig,
+        *,
+        result: GeoRunResult,
+        mention: MentionResult,
+        target: MentionTarget,
+        provider: SentimentModelProvider,
+        config: SentimentConfig,
 ) -> SentimentResult:
     """
     正式生产级单条 Sentiment Analyzer。
@@ -188,9 +188,9 @@ async def analyze_sentiment_with_provider(
     """
 
     if not should_classify_sentiment(
-        result=result,
-        mention=mention,
-        target_id=target.target_id,
+            result=result,
+            mention=mention,
+            target_id=target.target_id,
     ):
         return SentimentResult(
             target_id=target.target_id,
@@ -439,7 +439,7 @@ async def analyze_sentiment_with_provider(
         reason=(
             str(payload.get("reason"))
             if payload.get("reason")
-            is not None
+               is not None
             else None
         ),
 
@@ -549,19 +549,19 @@ async def analyze_sentiment_with_provider(
             )
 
             for rule_code in (
-                priority_match.get(
-                    "rule_codes",
-                    [],
-                )
+                    priority_match.get(
+                        "rule_codes",
+                        [],
+                    )
             ):
                 rule_code = str(
                     rule_code
                 )
 
                 if (
-                    rule_code
-                    not in sentiment
-                    .override_rule_codes
+                        rule_code
+                        not in sentiment
+                        .override_rule_codes
                 ):
                     sentiment.override_rule_codes.append(
                         rule_code
@@ -580,10 +580,10 @@ async def analyze_sentiment_with_provider(
                 )
 
             for evidence in (
-                priority_match.get(
-                    "evidence",
-                    [],
-                )
+                    priority_match.get(
+                        "evidence",
+                        [],
+                    )
             ):
                 _append_rule_evidence(
                     sentiment.evidence,
@@ -607,15 +607,21 @@ async def analyze_sentiment_with_provider(
         sentiment
     )
 
+    sentiment.evidence = (
+        _dedupe_evidence(
+            sentiment.evidence
+        )
+    )
+
     return sentiment
 
 
 def _provider_error_result(
-    *,
-    target: MentionTarget,
-    provider: SentimentModelProvider,
-    target_context,
-    error: SentimentApiError,
+        *,
+        target: MentionTarget,
+        provider: SentimentModelProvider,
+        target_context,
+        error: SentimentApiError,
 ) -> SentimentResult:
     if error.error_type == "rate_limit":
         status = (
@@ -678,10 +684,10 @@ def _provider_error_result(
 
 
 def _append_rule_evidence(
-    evidence: list[str],
-    item: str,
-    *,
-    evidence_max_items: int,
+        evidence: list[str],
+        item: str,
+        *,
+        evidence_max_items: int,
 ) -> None:
     """
     将规则命中证据加入 evidence。
@@ -693,8 +699,8 @@ def _append_rule_evidence(
     """
 
     if (
-        not item
-        or item in evidence
+            not item
+            or item in evidence
     ):
         return
 
@@ -705,8 +711,8 @@ def _append_rule_evidence(
         return
 
     if (
-        len(evidence)
-        >= evidence_max_items
+            len(evidence)
+            >= evidence_max_items
     ):
         evidence.pop(0)
 
@@ -716,7 +722,7 @@ def _append_rule_evidence(
 
 
 def _response_latencies(
-    latency_seconds: float | None,
+        latency_seconds: float | None,
 ) -> list[float]:
     if latency_seconds is None:
         return []
@@ -727,15 +733,15 @@ def _response_latencies(
 
 
 def _normalize_label(
-    value: SentimentLabel | str,
+        value: SentimentLabel | str,
 ) -> SentimentLabel:
     """
     将轻量分类器输出规范化为标准 SentimentLabel。
     """
 
     if isinstance(
-        value,
-        SentimentLabel,
+            value,
+            SentimentLabel,
     ):
         return value
 
@@ -758,7 +764,7 @@ def _normalize_label(
 
 
 def _classifier_name(
-    classifier: SentimentClassifier,
+        classifier: SentimentClassifier,
 ) -> str:
     name = getattr(
         classifier,
@@ -773,4 +779,92 @@ def _classifier_name(
         classifier
         .__class__
         .__name__
+    )
+
+
+def effective_sentiment_reason(
+        sentiment: SentimentResult,
+) -> str | None:
+    """
+    返回最终业务结果应展示的原因。
+
+    规则真正改变模型结论时：
+        优先展示 override_reason。
+
+    否则：
+        保留模型原始 reason。
+
+    注意：
+    不覆盖 sentiment.reason，
+    以保留模型原始判断的审计信息。
+    """
+
+    if (
+            sentiment.rule_override
+            and sentiment.override_reason
+    ):
+        return sentiment.override_reason
+
+    return sentiment.reason
+
+
+def _dedupe_evidence(
+        evidence: list[str],
+) -> list[str]:
+    """
+    去除语义上相同的 evidence。
+
+    例如：
+
+        鸿茅药酒相关内容提到谭秦东
+        鸿茅药酒相关内容提到谭秦东。
+
+    视为同一条。
+
+    只使用归一化 key 判断重复，
+    实际保留原始 evidence 文本，
+    不破坏“证据必须来自原文”的约束。
+    """
+
+    result: list[str] = []
+
+    seen: set[str] = set()
+
+    for item in evidence:
+        if not item:
+            continue
+
+        key = _evidence_dedupe_key(
+            item
+        )
+
+        if key in seen:
+            continue
+
+        seen.add(
+            key
+        )
+
+        result.append(
+            item
+        )
+
+    return result
+
+
+def _evidence_dedupe_key(
+        value: str,
+) -> str:
+    """
+    仅用于 evidence 去重比较，
+    不用于修改真实 evidence。
+    """
+
+    return (
+        value
+        .strip()
+        .rstrip(
+            "。！？!?；;"
+        )
+        .strip()
     )

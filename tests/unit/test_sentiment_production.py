@@ -11,6 +11,7 @@ from app.analysis.models import (
 )
 from app.analysis.sentiment import (
     analyze_sentiment_with_provider,
+    effective_sentiment_reason,
 )
 from app.analysis.sentiment_config import (
     SentimentConfig,
@@ -480,3 +481,124 @@ def test_not_mentioned_skips_provider() -> None:
     )
 
     assert provider.call_count == 0
+
+
+def test_effective_reason_uses_override_reason() -> None:
+    result = _result(
+        "鸿茅药酒相关内容提到谭秦东。"
+    )
+
+    provider = FakeProvider(
+        {
+            "target_name": "鸿茅药酒",
+            "sentiment": "neutral",
+            "reason": "模型认为只是客观提及",
+            "evidence": [
+                "鸿茅药酒相关内容提到谭秦东"
+            ],
+            "confidence": 0.9,
+        }
+    )
+
+    sentiment = asyncio.run(
+        analyze_sentiment_with_provider(
+            result=result,
+            mention=_mention(result),
+            target=_target(),
+            provider=provider,
+            config=SentimentConfig(),
+        )
+    )
+
+    assert (
+            sentiment.rule_override
+            is True
+    )
+
+    assert (
+            sentiment.reason
+            == "模型认为只是客观提及"
+    )
+
+    assert (
+            effective_sentiment_reason(
+                sentiment
+            )
+            == sentiment.override_reason
+    )
+
+
+def test_effective_reason_keeps_model_reason_without_override() -> None:
+    result = _result(
+        "鸿茅药酒属于正规药品。"
+    )
+
+    provider = FakeProvider(
+        {
+            "target_name": "鸿茅药酒",
+            "sentiment": "neutral",
+            "reason": "客观事实描述",
+            "evidence": [],
+            "confidence": 0.9,
+        }
+    )
+
+    sentiment = asyncio.run(
+        analyze_sentiment_with_provider(
+            result=result,
+            mention=_mention(result),
+            target=_target(),
+            provider=provider,
+            config=SentimentConfig(),
+        )
+    )
+
+    assert (
+            sentiment.rule_override
+            is False
+    )
+
+    assert (
+            effective_sentiment_reason(
+                sentiment
+            )
+            == "客观事实描述"
+    )
+
+
+def test_rule_evidence_dedupes_trailing_punctuation() -> None:
+    result = _result(
+        "鸿茅药酒相关内容提到谭秦东。"
+    )
+
+    provider = FakeProvider(
+        {
+            "target_name": "鸿茅药酒",
+            "sentiment": "neutral",
+            "reason": "模型中性",
+            "evidence": [
+                "鸿茅药酒相关内容提到谭秦东"
+            ],
+            "confidence": 0.9,
+        }
+    )
+
+    sentiment = asyncio.run(
+        analyze_sentiment_with_provider(
+            result=result,
+            mention=_mention(result),
+            target=_target(),
+            provider=provider,
+            config=SentimentConfig(),
+        )
+    )
+
+    matching = [
+        item
+        for item in sentiment.evidence
+        if "谭秦东" in item
+    ]
+
+    assert len(
+        matching
+    ) == 1
