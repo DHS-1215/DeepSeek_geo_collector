@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import asyncio
 import json
 import re
@@ -36,20 +36,6 @@ async def main() -> None:
 
         await deepseek.ensure_ready()
         await deepseek.set_quick_mode()
-
-        print(
-            "QUICK MODE:",
-            await deepseek
-            .quick_main_mode()
-            .get_attribute("aria-checked"),
-        )
-
-        print(
-            "EXPERT MODE:",
-            await deepseek
-            .expert_main_mode()
-            .get_attribute("aria-checked"),
-        )
 
         print(
             "DEEP_THINK:",
@@ -150,7 +136,7 @@ async def main() -> None:
             """
             body => {
                 const pattern =
-                    /已阅读\\s*\\d+\\s*个网页/;
+                    /(?:已阅读|搜索到)\\s*\\d+\\s*个网页/;
 
                 const nodes = [
                     ...body.querySelectorAll(
@@ -233,7 +219,7 @@ async def main() -> None:
 
         read_locator = page.get_by_text(
             re.compile(
-                r"已阅读\s*\d+\s*个网页"
+                r"(?:已阅读|搜索到)\s*\d+\s*个网页"
             )
         )
 
@@ -265,7 +251,7 @@ async def main() -> None:
             )
 
             if re.fullmatch(
-                    r"已阅读\s*\d+\s*个网页",
+                    r"(?:已阅读|搜索到)\s*\d+\s*个网页",
                     text,
             ):
                 click_target = candidate
@@ -275,7 +261,7 @@ async def main() -> None:
             print()
             print(
                 "没有找到可以安全点击的"
-                "“已阅读 X 个网页”精确元素。"
+                "“已阅读/搜索到 X 个网页”精确元素。"
             )
 
             input(
@@ -502,3 +488,4 @@ async def _visible_links(
 
 if __name__ == "__main__":
     asyncio.run(main())
+

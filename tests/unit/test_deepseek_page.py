@@ -135,75 +135,16 @@ def test_select_main_mode_rejects_failed_transition():
     mode.click.assert_awaited_once()
 
 
-def test_set_expert_mode_selects_expert_main_mode_only(
+def test_set_expert_mode_sets_expected_toggles(
         monkeypatch,
 ):
     page = MagicMock()
     deepseek = DeepSeekPage(page)
 
-    expert_mode = MagicMock()
-
-    select_main_mode = AsyncMock()
-
-    monkeypatch.setattr(
-        deepseek,
-        "_select_main_mode",
-        select_main_mode,
-    )
-
-    monkeypatch.setattr(
-        deepseek,
-        "expert_main_mode",
-        MagicMock(
-            return_value=expert_mode
-        ),
-    )
-
-    smart_search_toggle = MagicMock()
-    deep_think_toggle = MagicMock()
-
-    monkeypatch.setattr(
-        deepseek,
-        "smart_search_toggle",
-        smart_search_toggle,
-    )
-
-    monkeypatch.setattr(
-        deepseek,
-        "deep_think_toggle",
-        deep_think_toggle,
-    )
-
-    asyncio.run(
-        deepseek.set_expert_mode()
-    )
-
-    select_main_mode.assert_awaited_once_with(
-        expert_mode
-    )
-
-    smart_search_toggle.assert_not_called()
-    deep_think_toggle.assert_not_called()
-
-
-def test_set_quick_mode_selects_main_mode_and_toggles(
-        monkeypatch,
-):
-    page = MagicMock()
-    deepseek = DeepSeekPage(page)
-
-    quick_mode = MagicMock()
     smart_search = MagicMock()
     deep_think = MagicMock()
 
-    select_main_mode = AsyncMock()
     set_toggle = AsyncMock()
-
-    monkeypatch.setattr(
-        deepseek,
-        "_select_main_mode",
-        select_main_mode,
-    )
 
     monkeypatch.setattr(
         deepseek,
@@ -213,10 +154,54 @@ def test_set_quick_mode_selects_main_mode_and_toggles(
 
     monkeypatch.setattr(
         deepseek,
-        "quick_main_mode",
+        "smart_search_toggle",
         MagicMock(
-            return_value=quick_mode
+            return_value=smart_search
         ),
+    )
+
+    monkeypatch.setattr(
+        deepseek,
+        "deep_think_toggle",
+        MagicMock(
+            return_value=deep_think
+        ),
+    )
+
+    asyncio.run(
+        deepseek.set_expert_mode()
+    )
+
+    assert (
+            set_toggle.await_args_list
+            == [
+                call(
+                    deep_think,
+                    True,
+                ),
+                call(
+                    smart_search,
+                    False,
+                ),
+            ]
+    )
+
+
+def test_set_quick_mode_sets_expected_toggles(
+        monkeypatch,
+):
+    page = MagicMock()
+    deepseek = DeepSeekPage(page)
+
+    smart_search = MagicMock()
+    deep_think = MagicMock()
+
+    set_toggle = AsyncMock()
+
+    monkeypatch.setattr(
+        deepseek,
+        "_set_toggle",
+        set_toggle,
     )
 
     monkeypatch.setattr(
@@ -239,20 +224,19 @@ def test_set_quick_mode_selects_main_mode_and_toggles(
         deepseek.set_quick_mode()
     )
 
-    select_main_mode.assert_awaited_once_with(
-        quick_mode
+    assert (
+            set_toggle.await_args_list
+            == [
+                call(
+                    smart_search,
+                    True,
+                ),
+                call(
+                    deep_think,
+                    False,
+                ),
+            ]
     )
-
-    assert set_toggle.await_args_list == [
-        call(
-            smart_search,
-            True,
-        ),
-        call(
-            deep_think,
-            False,
-        ),
-    ]
 
 
 def test_source_cards_returns_locator():

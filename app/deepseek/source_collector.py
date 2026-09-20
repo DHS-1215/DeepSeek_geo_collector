@@ -92,6 +92,15 @@ async def collect_sources(
         sources
     )
 
+    if (
+            declared_count == 0
+            and "搜索到" in text
+            and captured_count > 0
+    ):
+        declared_count = (
+            captured_count
+        )
+
     unique_urls = {
         normalize_url(
             source.resolved_url

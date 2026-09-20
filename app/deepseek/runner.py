@@ -34,6 +34,33 @@ from app.validation.validator import (
 )
 
 
+async def _capture_artifacts_safely(
+        page,
+        run_id: str,
+        output_dir,
+) -> ArtifactInfo:
+    """
+    Artifact 属于辅助证据，不应该因为页面已关闭
+    而导致整个采集任务异常退出。
+    """
+
+    if page is None:
+        return ArtifactInfo()
+
+    try:
+        if page.is_closed() is True:
+            return ArtifactInfo()
+
+        return await capture_artifacts(
+            page,
+            run_id,
+            output_dir,
+        )
+
+    except Exception:
+        return ArtifactInfo()
+
+
 async def run_deepseek_task(
         task: GeoTask,
         batch_id: str | None = None,
@@ -117,7 +144,7 @@ async def run_deepseek_task(
                 deepseek
             )
 
-            artifacts = await capture_artifacts(
+            artifacts = await _capture_artifacts_safely(
                 page,
                 run_id,
                 settings.output_dir,
@@ -167,14 +194,11 @@ async def run_deepseek_task(
 
     except Exception as exc:
 
-        artifacts = ArtifactInfo()
-
-        if page is not None:
-            artifacts = await capture_artifacts(
-                page,
-                run_id,
-                settings.output_dir,
-            )
+        artifacts = await _capture_artifacts_safely(
+            page,
+            run_id,
+            settings.output_dir,
+        )
 
         failure_type = classify_failure(
             exc

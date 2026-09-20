@@ -151,11 +151,16 @@ class DeepSeekPage:
             )
 
     async def set_quick_mode(self) -> None:
-        """切换到 Quick 模式。"""
+        """
+        切换到 Quick 模式。
 
-        await self._select_main_mode(
-            self.quick_main_mode()
-        )
+        DeepSeek 当前页面已取消独立的
+        “快速模式”主模式选择器。
+
+        Quick 语义映射为：
+        - 智能搜索：开启
+        - 深度思考：关闭
+        """
 
         await self._set_toggle(
             self.smart_search_toggle(),
@@ -168,10 +173,25 @@ class DeepSeekPage:
         )
 
     async def set_expert_mode(self) -> None:
-        """切换到 Expert 模式。"""
+        """
+        切换到 Expert 模式。
 
-        await self._select_main_mode(
-            self.expert_main_mode()
+        DeepSeek 当前页面已取消独立的
+        “专家模式”主模式选择器。
+
+        Expert 语义映射为：
+        - 深度思考：开启
+        - 智能搜索：关闭
+        """
+
+        await self._set_toggle(
+            self.deep_think_toggle(),
+            True,
+        )
+
+        await self._set_toggle(
+            self.smart_search_toggle(),
+            False,
         )
 
     async def fill_question(
@@ -248,6 +268,6 @@ class DeepSeekPage:
     def read_webpages_indicator(self) -> Locator:
         return self._page.get_by_text(
             re.compile(
-                r"已阅读\s*\d+\s*个网页"
+                r"(?:已阅读|搜索到)\s*\d+\s*个网页"
             )
         )
