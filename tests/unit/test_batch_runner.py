@@ -427,3 +427,163 @@ def test_run_batch_waits_only_between_tasks(
     sleep_mock.assert_awaited_with(
         5
     )
+
+
+def test_run_batch_resumes_from_checkpoint(
+        monkeypatch,
+        tmp_path,
+):
+    import app.batch.runner as runner
+
+    from app.batch.checkpoint import (
+        load_checkpoint,
+        save_checkpoint,
+    )
+
+    batch_id = "batch_resume_001"
+
+    tasks = [
+        BatchTask(
+            batch_id=batch_id,
+            task_id="task_001",
+            question_id="Q001",
+            question="测试问题1",
+            mode=GeoMode.QUICK,
+        ),
+        BatchTask(
+            batch_id=batch_id,
+            task_id="task_002",
+            question_id="Q002",
+            question="测试问题2",
+            mode=GeoMode.QUICK,
+        ),
+    ]
+
+    restored_result = GeoRunResult(
+        provider="deepseek",
+        run_id="run_restored_001",
+        task=GeoTask(
+            task_id="task_001",
+            question_id="Q001",
+            question="测试问题1",
+            mode=GeoMode.QUICK,
+        ),
+        batch_id=batch_id,
+        answer_text_clean="旧的成功结果",
+        status=TaskStatus.SUCCESS,
+    )
+
+    save_checkpoint(
+        output_dir=tmp_path,
+        batch_id=batch_id,
+        total_count=2,
+        results=[
+            restored_result,
+        ],
+        status="RUNNING",
+    )
+
+    settings = SimpleNamespace(
+        network_retry_times=2,
+        network_retry_interval_seconds=0,
+        task_interval_seconds=0,
+    )
+
+    monkeypatch.setattr(
+        runner,
+        "load_settings",
+        lambda: settings,
+    )
+
+    executed_task_ids = []
+
+    async def fake_runner(
+            task: GeoTask,
+            batch_id: str,
+    ):
+        executed_task_ids.append(
+            task.task_id
+        )
+
+        return GeoRunResult(
+            provider="deepseek",
+            run_id=f"run_{task.task_id}",
+            task=task,
+            batch_id=batch_id,
+            answer_text_clean=(
+                f"新采集结果 {task.task_id}"
+            ),
+            status=TaskStatus.SUCCESS,
+        )
+
+    monkeypatch.setattr(
+        runner,
+        "run_deepseek_task",
+        fake_runner,
+    )
+
+    result = asyncio.run(
+        run_batch(
+            tasks,
+            checkpoint_output_dir=tmp_path,
+        )
+    )
+
+    # task_001 已在 checkpoint 中，
+    # Resume 后不能重复执行。
+    assert executed_task_ids == [
+        "task_002",
+    ]
+
+    # 最终仍然按照原 CSV 顺序返回。
+    assert [
+        item.task.task_id
+        for item in result.results
+    ] == [
+        "task_001",
+        "task_002",
+    ]
+
+    assert (
+        result.results[0].answer_text_clean
+        == "旧的成功结果"
+    )
+
+    assert (
+        result.results[1].answer_text_clean
+        == "新采集结果 task_002"
+    )
+
+    assert result.total_count == 2
+    assert result.success_count == 2
+    assert result.failed_count == 0
+
+    assert (
+        result.status
+        == BatchStatus.SUCCESS
+    )
+
+    snapshot = load_checkpoint(
+        output_dir=tmp_path,
+        batch_id=batch_id,
+    )
+
+    assert snapshot is not None
+
+    assert (
+        snapshot.checkpoint.status
+        == "COMPLETED"
+    )
+
+    assert (
+        snapshot.checkpoint.successful_count
+        == 2
+    )
+
+    assert [
+        item.task.task_id
+        for item in snapshot.results
+    ] == [
+        "task_001",
+        "task_002",
+    ]

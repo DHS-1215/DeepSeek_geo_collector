@@ -67,3 +67,4 @@ Thumbs.db
 *.tmp
 *.temp
 *.bak
+dist/

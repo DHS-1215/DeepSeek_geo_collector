@@ -116,7 +116,10 @@ async def run_collection_pipeline(
     )
 
     batch_result = await run_batch(
-        tasks
+        tasks,
+        checkpoint_output_dir=(
+            output_dir.parent
+        ),
     )
 
     analysis_result = await run_geo_analysis(
@@ -206,10 +209,8 @@ def build_analysis_targets(
 
     当前 Pipeline 一次分析一个目标产品。
 
-    默认 aliases 至少包含 product_name。
-
-    后续 CLI 可以继续扩展：
-        --product-alias
+    已知产品使用预设 aliases；
+    未知产品至少使用 product_name 作为 alias。
     """
 
     normalized_id = (
@@ -230,13 +231,41 @@ def build_analysis_targets(
             "product_name cannot be empty"
         )
 
+    product_aliases: dict[
+        str,
+        list[str],
+    ] = {
+        "hongmao_yaojiu": [
+            "鸿茅药酒",
+        ],
+
+        "tianyishou_qixueguben": [
+            "天益寿气血固本",
+            "天益寿气血固本口服液",
+            "天益寿牌气血固本口服液",
+        ],
+    }
+
+    aliases = list(
+        product_aliases.get(
+            normalized_id,
+            [
+                normalized_name,
+            ],
+        )
+    )
+
+    if normalized_name not in aliases:
+        aliases.insert(
+            0,
+            normalized_name,
+        )
+
     return [
         MentionTarget(
             target_id=normalized_id,
             name=normalized_name,
-            aliases=[
-                normalized_name,
-            ],
+            aliases=aliases,
         )
     ]
 
@@ -287,3 +316,4 @@ def _analysis_has_warnings(
                 return True
 
     return False
+

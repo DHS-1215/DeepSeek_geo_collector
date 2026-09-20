@@ -78,6 +78,40 @@ def test_build_analysis_targets() -> None:
     ]
 
 
+def test_build_analysis_targets_for_tianyishou() -> None:
+    targets = (
+        pipeline_runner_module
+        .build_analysis_targets(
+            product_id=(
+                "tianyishou_qixueguben"
+            ),
+            product_name=(
+                "天益寿气血固本"
+            ),
+        )
+    )
+
+    assert len(targets) == 1
+
+    target = targets[0]
+
+    assert (
+            target.target_id
+            == "tianyishou_qixueguben"
+    )
+
+    assert (
+            target.name
+            == "天益寿气血固本"
+    )
+
+    assert target.aliases == [
+        "天益寿气血固本",
+        "天益寿气血固本口服液",
+        "天益寿牌气血固本口服液",
+    ]
+
+
 def test_run_collection_pipeline_success(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
@@ -221,7 +255,10 @@ def test_run_collection_pipeline_success(
     )
 
     run_mock.assert_awaited_once_with(
-        tasks
+        tasks,
+        checkpoint_output_dir=(
+            tmp_path.parent
+        ),
     )
 
     analysis_mock.assert_awaited_once_with(
