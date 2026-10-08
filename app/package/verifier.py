@@ -155,10 +155,12 @@ def _verify_checksums(
         )
 
     expected_files = {
-        "manifest.json",
-        "tasks.jsonl",
-        "answers.jsonl",
-        "sources.jsonl",
+        name
+        for name in archive.namelist()
+        if (
+            name != "checksums.json"
+            and not name.endswith("/")
+        )
     }
 
     if set(files) != expected_files:

@@ -156,6 +156,35 @@ def test_export_single_quick_result_with_sources(
                 in names
         )
 
+        checksums = json.loads(
+            archive.read(
+                "checksums.json"
+            )
+        )
+
+        screenshot_name = (
+            "screenshots/"
+            "Q001_quick.png"
+        )
+
+        assert (
+            screenshot_name
+            in checksums["files"]
+        )
+
+        screenshot_bytes = archive.read(
+            screenshot_name
+        )
+
+        assert (
+            checksums["files"][
+                screenshot_name
+            ]
+            == hashlib.sha256(
+                screenshot_bytes
+            ).hexdigest()
+        )
+
         manifest = json.loads(
             archive.read(
                 "manifest.json"

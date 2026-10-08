@@ -329,6 +329,7 @@ def export_geo_package(
         tasks=task_rows,
         answers=answer_rows,
         sources=source_rows,
+        screenshot_files=screenshot_files,
     )
 
     package_path = (
@@ -492,6 +493,9 @@ def _build_package_files(
         tasks: list[PackageTaskRow],
         answers: list[PackageAnswerRow],
         sources: list[PackageSourceRow],
+        screenshot_files: list[
+            tuple[Path, str]
+        ],
 ) -> dict[str, bytes]:
     """生成 ZIP 中的固定数据文件。"""
 
@@ -517,6 +521,12 @@ def _build_package_files(
         for filename
         in CHECKSUM_DATA_FILES
     }
+
+    for source_path, archive_path in screenshot_files:
+        if source_path.exists():
+            checksum_input[
+                archive_path
+            ] = source_path.read_bytes()
 
     checksums = PackageChecksums(
         files=build_checksums(
