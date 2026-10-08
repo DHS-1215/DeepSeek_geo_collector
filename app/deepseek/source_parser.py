@@ -93,15 +93,6 @@ async def parse_source_cards(
                     .inner_text()
                 ).strip()
 
-        if await order_locator.count():
-            raw_order = (
-                await order_locator
-                .inner_text()
-            ).strip()
-
-            if raw_order.isdigit():
-                order = int(raw_order)
-
         source = GeoSource(
             occurrence_id=(
                 build_occurrence_id(

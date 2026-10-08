@@ -274,3 +274,101 @@ def test_parse_source_cards_uses_position_when_order_missing() -> None:
     )
     assert source.snippet == "测试来源摘要"
     assert source.domain == "example.com"
+
+
+
+def test_parse_source_cards_uses_dom_position_when_display_order_conflicts() -> None:
+    cards = MagicMock()
+
+    cards.count = AsyncMock(
+        return_value=2
+    )
+
+    def make_card(
+            href: str,
+            raw_order: str | None,
+    ):
+        card = MagicMock()
+
+        card.get_attribute = AsyncMock(
+            return_value=href
+        )
+
+        title_locator = MagicMock()
+        title_locator.count = AsyncMock(
+            return_value=0
+        )
+
+        snippet_locator = MagicMock()
+        snippet_locator.count = AsyncMock(
+            return_value=0
+        )
+
+        order_locator = MagicMock()
+
+        if raw_order is None:
+            order_locator.count = AsyncMock(
+                return_value=0
+            )
+        else:
+            order_locator.count = AsyncMock(
+                return_value=1
+            )
+            order_locator.inner_text = AsyncMock(
+                return_value=raw_order
+            )
+
+        def locator_side_effect(
+                selector: str,
+        ):
+            from app.deepseek.selectors import (
+                SOURCE_CARD_ORDER,
+                SOURCE_CARD_SNIPPET,
+                SOURCE_CARD_TITLE,
+            )
+
+            mapping = {
+                SOURCE_CARD_TITLE:
+                    title_locator,
+                SOURCE_CARD_SNIPPET:
+                    snippet_locator,
+                SOURCE_CARD_ORDER:
+                    order_locator,
+            }
+
+            return mapping[selector]
+
+        card.locator.side_effect = (
+            locator_side_effect
+        )
+
+        return card
+
+    first_card = make_card(
+        "https://example.com/first",
+        None,
+    )
+
+    second_card = make_card(
+        "https://example.com/second",
+        "1",
+    )
+
+    cards.nth.side_effect = [
+        first_card,
+        second_card,
+    ]
+
+    sources = asyncio.run(
+        parse_source_cards(cards)
+    )
+
+    assert len(sources) == 2
+
+    assert [
+        source.order
+        for source in sources
+    ] == [
+        1,
+        2,
+    ]

@@ -527,3 +527,91 @@ def test_export_deduplicates_tracking_url_sources(
         )
 
         assert len(sources) == 1
+
+
+
+def test_export_normalizes_conflicting_source_orders(
+        tmp_path: Path,
+) -> None:
+    task = GeoTask(
+        task_id="Q005_quick",
+        question_id="Q005",
+        question="source order conflict test",
+        mode=GeoMode.QUICK,
+    )
+
+    source1 = GeoSource(
+        occurrence_id="R1_S1",
+        order=1,
+        resolved_url=(
+            "https://example.com/first"
+        ),
+    )
+
+    source2 = GeoSource(
+        occurrence_id="R1_S2",
+        order=1,
+        resolved_url=(
+            "https://example.com/second"
+        ),
+    )
+
+    source3 = GeoSource(
+        occurrence_id="R1_S3",
+        order=2,
+        resolved_url=(
+            "https://example.com/third"
+        ),
+    )
+
+    result = GeoRunResult(
+        provider="deepseek",
+        run_id="run_order_conflict",
+        task=task,
+        answer_text_raw="answer",
+        answer_text_clean="answer",
+        sources=SourceCollection(
+            status=(
+                SourceCollectionStatus.SUCCESS
+            ),
+            declared_count=3,
+            captured_count=3,
+            unique_count=3,
+            coverage_ratio=1.0,
+            sources=[
+                source1,
+                source2,
+                source3,
+            ],
+        ),
+        validation=ValidationResult(
+            status=ValidationStatus.PASS,
+        ),
+        status=TaskStatus.SUCCESS,
+    )
+
+    package_path = export_geo_package(
+        batch_id="batch_order_conflict",
+        results=[result],
+        output_dir=tmp_path,
+        product_id="test_product",
+        product_name="test product",
+    )
+
+    with zipfile.ZipFile(
+            package_path
+    ) as archive:
+        sources = _read_jsonl(
+            archive.read(
+                "sources.jsonl"
+            )
+        )
+
+    assert [
+        item["source_order"]
+        for item in sources
+    ] == [
+        1,
+        2,
+        3,
+    ]

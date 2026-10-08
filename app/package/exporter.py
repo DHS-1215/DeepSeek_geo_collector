@@ -200,6 +200,9 @@ def export_geo_package(
             set()
         )
 
+        source_order_by_url: dict[str, int] = {}
+        next_source_order = 1
+
         for index, source in enumerate(
                 result.sources.sources,
                 start=1,
@@ -227,10 +230,21 @@ def export_geo_package(
             )
 
             source_order = (
-                source.order
-                if source.order
-                else index
+                source_order_by_url.get(
+                    canonical_url
+                )
             )
+
+            if source_order is None:
+                source_order = (
+                    next_source_order
+                )
+
+                source_order_by_url[
+                    canonical_url
+                ] = source_order
+
+                next_source_order += 1
 
             raw_source_rows.append(
                 {
