@@ -7,6 +7,12 @@ from unittest.mock import AsyncMock
 import pytest
 
 import app.pipeline.runner as pipeline_runner_module
+from app.analysis.models import (
+    ModelResponse,
+)
+from app.analysis.sentiment_config import (
+    SentimentConfig,
+)
 from app.batch.models import (
     BatchResult,
     BatchStatus,
@@ -27,6 +33,41 @@ from app.core.models import (
 from app.pipeline.models import (
     PipelineStatus,
 )
+
+
+class NeutralProvider:
+    provider_name = "integration-provider"
+    model_name = "integration-model"
+
+    async def health_check(
+            self,
+    ) -> bool:
+        return True
+
+    async def classify(
+            self,
+            *,
+            system_prompt: str,
+            user_prompt: str,
+    ) -> ModelResponse:
+        payload = {
+            "target_name": (
+                "\u9e3f\u8305\u836f\u9152"
+            ),
+            "sentiment": "neutral",
+            "reason": "integration-test",
+            "evidence": [],
+            "confidence": 0.9,
+        }
+
+        return ModelResponse(
+            payload=payload,
+            latency_seconds=0.01,
+            raw_content="integration-test",
+            response_json_keys=list(
+                payload.keys()
+            ),
+        )
 
 
 def _read_jsonl(
@@ -188,6 +229,14 @@ def test_pipeline_loads_csv_exports_and_verifies_package(
             output_dir=output_dir,
             product_id="hongmao_yaojiu",
             product_name="鸿茅药酒",
+            sentiment_provider=(
+                NeutralProvider()
+            ),
+            sentiment_config=(
+                SentimentConfig(
+                    max_retries=0,
+                )
+            ),
         )
     )
 

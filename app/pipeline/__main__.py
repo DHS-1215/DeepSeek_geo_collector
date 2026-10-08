@@ -11,6 +11,9 @@ from app.package.verifier import (
 from app.pipeline.models import (
     PipelineStatus,
 )
+from app.pipeline.exceptions import (
+    PipelinePausedError,
+)
 from app.pipeline.runner import (
     run_collection_pipeline,
 )
@@ -65,6 +68,20 @@ def parse_args(
 
     return parser.parse_args(
         argv
+    )
+
+
+def _format_non_negative_rate(
+        summary,
+) -> str:
+    if (
+            summary.classified_mention_count
+            <= 0
+    ):
+        return "N/A"
+
+    return (
+        f"{summary.non_negative_rate:.2%}"
     )
 
 
@@ -172,29 +189,29 @@ async def run_cli(
 
     print(
         "NON-NEGATIVE RATE (QUICK):",
-        (
-            f"{sentiment_summary.quick.non_negative_rate:.2%}"
+        _format_non_negative_rate(
+            sentiment_summary.quick
         ),
     )
 
     print(
         "NON-NEGATIVE RATE (EXPERT):",
-        (
-            f"{sentiment_summary.expert.non_negative_rate:.2%}"
+        _format_non_negative_rate(
+            sentiment_summary.expert
         ),
     )
 
     print(
         "NON-NEGATIVE RATE (ALL):",
-        (
-            f"{sentiment_summary.all_answers.non_negative_rate:.2%}"
+        _format_non_negative_rate(
+            sentiment_summary.all_answers
         ),
     )
 
     print(
         "NON-NEGATIVE RATE (QUESTION):",
-        (
-            f"{sentiment_summary.question_level.non_negative_rate:.2%}"
+        _format_non_negative_rate(
+            sentiment_summary.question_level
         ),
     )
 
@@ -266,6 +283,30 @@ def main(
             run_cli(args)
         )
 
+    except PipelinePausedError as exc:
+        print("=" * 80)
+        print("DEEPSEEK GEO PIPELINE")
+        print("=" * 80)
+        print("PIPELINE STATUS: PAUSED")
+        print(
+            "BATCH ID:",
+            exc.batch_id,
+        )
+        print(
+            "REASON:",
+            exc.reason,
+        )
+        print(
+            "CHECKPOINT:",
+            "SAVED",
+        )
+        print(
+            "NEXT ACTION:",
+            "Run again later and choose R to resume.",
+        )
+
+        return 4
+
     except PackageVerificationError as exc:
         print(
             "PACKAGE VERIFICATION FAILED:",
@@ -284,6 +325,14 @@ def main(
         )
 
         return 2
+
+    except Exception as exc:
+        print(
+            "INTERNAL ERROR:",
+            exc,
+        )
+
+        return 5
 
 
 if __name__ == "__main__":

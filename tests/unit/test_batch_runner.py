@@ -9,8 +9,9 @@ from app.batch.runner import (
     run_task_with_retry,
 )
 from app.core.enums import (
+    FailureType,
     GeoMode,
-    TaskStatus, FailureType,
+    TaskStatus,
 )
 from app.core.models import (
     GeoRunResult,
@@ -586,4 +587,166 @@ def test_run_batch_resumes_from_checkpoint(
     ] == [
         "task_001",
         "task_002",
+    ]
+
+
+
+def test_run_batch_pauses_on_rate_limit(
+        monkeypatch,
+        tmp_path,
+):
+    import app.batch.runner as runner
+
+    from app.batch.checkpoint import (
+        load_checkpoint,
+    )
+
+    batch_id = "batch_rate_limit_001"
+
+    settings = SimpleNamespace(
+        network_retry_times=2,
+        network_retry_interval_seconds=0,
+        task_interval_seconds=0,
+    )
+
+    monkeypatch.setattr(
+        runner,
+        "load_settings",
+        lambda: settings,
+    )
+
+    executed_task_ids = []
+
+    async def fake_runner(
+            task: GeoTask,
+            batch_id: str,
+    ):
+        executed_task_ids.append(
+            task.task_id
+        )
+
+        if task.task_id == "task_002":
+            return GeoRunResult(
+                provider="deepseek",
+                run_id="run_rate_limit",
+                task=task,
+                batch_id=batch_id,
+                failure=FailureInfo(
+                    type=FailureType.RATE_LIMIT,
+                    message="rate limited",
+                    retryable=False,
+                ),
+                status=TaskStatus.FAILED,
+            )
+
+        return GeoRunResult(
+            provider="deepseek",
+            run_id=f"run_{task.task_id}",
+            task=task,
+            batch_id=batch_id,
+            answer_text_clean=(
+                f"success {task.task_id}"
+            ),
+            status=TaskStatus.SUCCESS,
+        )
+
+    monkeypatch.setattr(
+        runner,
+        "run_deepseek_task",
+        fake_runner,
+    )
+
+    tasks = [
+        BatchTask(
+            batch_id=batch_id,
+            task_id="task_001",
+            question_id="Q001",
+            question="question 1",
+            mode=GeoMode.QUICK,
+        ),
+        BatchTask(
+            batch_id=batch_id,
+            task_id="task_002",
+            question_id="Q002",
+            question="question 2",
+            mode=GeoMode.QUICK,
+        ),
+        BatchTask(
+            batch_id=batch_id,
+            task_id="task_003",
+            question_id="Q003",
+            question="question 3",
+            mode=GeoMode.QUICK,
+        ),
+    ]
+
+    result = asyncio.run(
+        run_batch(
+            tasks,
+            checkpoint_output_dir=tmp_path,
+        )
+    )
+
+    # task_002 must not retry,
+    # and task_003 must not execute.
+    assert executed_task_ids == [
+        "task_001",
+        "task_002",
+    ]
+
+    assert (
+        result.status
+        == BatchStatus.FAILED
+    )
+
+    assert result.success_count == 1
+    assert result.failed_count == 1
+
+    assert [
+        item.task.task_id
+        for item in result.results
+    ] == [
+        "task_001",
+        "task_002",
+    ]
+
+    assert (
+        result.results[1].failure
+        is not None
+    )
+
+    assert (
+        result.results[1].failure.type
+        == FailureType.RATE_LIMIT
+    )
+
+    snapshot = load_checkpoint(
+        output_dir=tmp_path,
+        batch_id=batch_id,
+    )
+
+    assert snapshot is not None
+
+    assert (
+        snapshot.checkpoint.status
+        == "INCOMPLETE"
+    )
+
+    assert (
+        snapshot.checkpoint.total_count
+        == 3
+    )
+
+    assert (
+        snapshot.checkpoint.successful_count
+        == 1
+    )
+
+    # Failed rate-limit task is intentionally
+    # not persisted as completed.
+    assert [
+        item.task.task_id
+        for item in snapshot.results
+    ] == [
+        "task_001",
     ]

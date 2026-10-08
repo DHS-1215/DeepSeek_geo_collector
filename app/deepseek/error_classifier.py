@@ -1,4 +1,5 @@
 from app.core.enums import FailureType
+from app.core.exceptions import RateLimitError
 
 
 def classify_failure(
@@ -9,6 +10,12 @@ def classify_failure(
     """
 
     message = str(exc).lower()
+
+    if isinstance(
+            exc,
+            RateLimitError,
+    ):
+        return FailureType.RATE_LIMIT
 
     if isinstance(
             exc,

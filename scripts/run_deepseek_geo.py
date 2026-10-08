@@ -294,13 +294,49 @@ def run_pipeline(product: dict) -> int:
         cwd=PROJECT_ROOT,
     )
 
-    if result.returncode != 0:
+    if result.returncode == 4:
+        print()
+        print("=" * 60)
+        print("[PAUSED] DeepSeek GEO pipeline paused")
+        print("=" * 60)
+        print()
+        print(
+            "DeepSeek triggered rate limiting."
+        )
+        print(
+            "Checkpoint has been saved."
+        )
+        print(
+            "Please run this launcher again later "
+            "and choose R to resume."
+        )
+        print()
+        print(f"[BATCH] {batch_id}")
+        print()
+
+        return 4
+
+    completed_with_warnings = (
+        result.returncode == 1
+    )
+
+    if result.returncode not in {
+        0,
+        1,
+    }:
         print()
         print(
             "[ERROR] Pipeline exited with "
             f"code {result.returncode}"
         )
         return result.returncode
+
+    if completed_with_warnings:
+        print()
+        print(
+            "[WARNING] Pipeline completed "
+            "with warnings."
+        )
 
     package_path = (
             OUTPUT_DIR
@@ -334,6 +370,9 @@ def run_pipeline(product: dict) -> int:
         "GEO Analysis System。"
     )
     print("=" * 60)
+
+    if completed_with_warnings:
+        return 1
 
     return 0
 

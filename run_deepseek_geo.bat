@@ -13,10 +13,17 @@ if not exist ".venv\Scripts\python.exe" (
 set "EXIT_CODE=%ERRORLEVEL%"
 
 echo.
-if not "%EXIT_CODE%"=="0" (
-    echo [FAILED] DeepSeek GEO pipeline failed.
-) else (
+
+if "%EXIT_CODE%"=="0" (
     echo [SUCCESS] DeepSeek GEO pipeline completed.
+) else if "%EXIT_CODE%"=="1" (
+    echo [WARNING] DeepSeek GEO pipeline completed with warnings.
+    echo GEO package was generated successfully.
+) else if "%EXIT_CODE%"=="4" (
+    echo [PAUSED] DeepSeek GEO pipeline paused.
+    echo Checkpoint saved. Run again later and choose R to resume.
+) else (
+    echo [FAILED] DeepSeek GEO pipeline failed.
 )
 
 echo.

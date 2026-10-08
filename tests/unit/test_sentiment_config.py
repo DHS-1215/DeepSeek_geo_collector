@@ -52,6 +52,11 @@ def test_default_sentiment_config(
             == 180
     )
 
+    assert (
+            config.health_check_timeout_seconds
+            == 3
+    )
+
     assert config.temperature == 0.0
 
     assert config.max_retries == 2
@@ -91,6 +96,11 @@ def test_sentiment_config_from_environment(
     )
 
     monkeypatch.setenv(
+        "SENTIMENT_HEALTH_CHECK_TIMEOUT_SECONDS",
+        "5",
+    )
+
+    monkeypatch.setenv(
         "SENTIMENT_TEMPERATURE",
         "0.2",
     )
@@ -119,6 +129,11 @@ def test_sentiment_config_from_environment(
     assert (
             config.request_timeout_seconds
             == 60
+    )
+
+    assert (
+            config.health_check_timeout_seconds
+            == 5
     )
 
     assert (
@@ -167,6 +182,26 @@ def test_invalid_sentiment_provider(
     with pytest.raises(
             ConfigurationError,
             match="SENTIMENT_PROVIDER",
+    ):
+        load_sentiment_config(
+            env_file=None
+        )
+
+
+
+def test_invalid_sentiment_health_check_timeout(
+        monkeypatch,
+) -> None:
+    monkeypatch.setenv(
+        "SENTIMENT_HEALTH_CHECK_TIMEOUT_SECONDS",
+        "0",
+    )
+
+    with pytest.raises(
+            ConfigurationError,
+            match=(
+                "SENTIMENT_HEALTH_CHECK_TIMEOUT_SECONDS"
+            ),
     ):
         load_sentiment_config(
             env_file=None

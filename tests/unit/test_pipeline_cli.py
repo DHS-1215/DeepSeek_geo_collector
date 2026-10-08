@@ -15,6 +15,9 @@ from app.pipeline.models import (
     PipelineResult,
     PipelineStatus,
 )
+from app.pipeline.exceptions import (
+    PipelinePausedError,
+)
 
 from app.analysis.models import (
     GeoAnalysisResult,
@@ -407,4 +410,201 @@ def test_cli_prints_geo_analysis_metrics(
     assert (
             "SOURCE OCCURRENCES: 10"
             in output
+    )
+
+
+
+def test_cli_prints_na_when_sentiment_is_not_classified(
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+) -> None:
+    pipeline_result = _build_pipeline_result(
+        status=PipelineStatus.PASS,
+    )
+
+    sentiment_summary = (
+        pipeline_result
+        .analysis_result
+        .sentiment
+        .summaries[
+            "product_001"
+        ]
+    )
+
+    summaries = (
+        sentiment_summary.quick,
+        sentiment_summary.expert,
+        sentiment_summary.all_answers,
+        sentiment_summary.question_level,
+    )
+
+    for summary in summaries:
+        summary.classified_mention_count = 0
+        summary.non_negative_rate = 0.0
+
+    monkeypatch.setattr(
+        cli_module,
+        "run_collection_pipeline",
+        AsyncMock(
+            return_value=pipeline_result
+        ),
+    )
+
+    exit_code = cli_module.main(
+        [
+            "--csv",
+            "input/tasks.csv",
+            "--batch-id",
+            "batch_001",
+            "--product-id",
+            "product_001",
+            "--product-name",
+            "test-product",
+        ]
+    )
+
+    assert exit_code == 0
+
+    output = (
+        capsys
+        .readouterr()
+        .out
+    )
+
+    assert (
+        "NON-NEGATIVE RATE (QUICK): N/A"
+        in output
+    )
+
+    assert (
+        "NON-NEGATIVE RATE (EXPERT): N/A"
+        in output
+    )
+
+    assert (
+        "NON-NEGATIVE RATE (ALL): N/A"
+        in output
+    )
+
+    assert (
+        "NON-NEGATIVE RATE (QUESTION): N/A"
+        in output
+    )
+
+
+
+def test_main_returns_four_for_pipeline_pause(
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        cli_module,
+        "run_collection_pipeline",
+        AsyncMock(
+            side_effect=(
+                PipelinePausedError(
+                    batch_id=(
+                        "batch_rate_limit_001"
+                    ),
+                    reason=(
+                        "deepseek_rate_limit"
+                    ),
+                )
+            )
+        ),
+    )
+
+    exit_code = cli_module.main(
+        [
+            "--csv",
+            "input/tasks.csv",
+            "--batch-id",
+            "batch_rate_limit_001",
+            "--product-id",
+            "hongmao_yaojiu",
+            "--product-name",
+            "test-product",
+        ]
+    )
+
+    assert exit_code == 4
+
+    output = (
+        capsys
+        .readouterr()
+        .out
+    )
+
+    assert (
+        "PIPELINE STATUS: PAUSED"
+        in output
+    )
+
+    assert (
+        "BATCH ID: batch_rate_limit_001"
+        in output
+    )
+
+    assert (
+        "REASON: deepseek_rate_limit"
+        in output
+    )
+
+    assert (
+        "CHECKPOINT: SAVED"
+        in output
+    )
+
+    assert (
+        "choose R to resume"
+        in output
+    )
+
+    assert "Traceback" not in output
+
+
+
+def test_main_returns_five_for_internal_error(
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        cli_module,
+        "run_collection_pipeline",
+        AsyncMock(
+            side_effect=RuntimeError(
+                "unexpected failure"
+            )
+        ),
+    )
+
+    exit_code = cli_module.main(
+        [
+            "--csv",
+            "input/tasks.csv",
+            "--batch-id",
+            "batch_internal_error",
+            "--product-id",
+            "test_product",
+            "--product-name",
+            "test-product",
+        ]
+    )
+
+    assert exit_code == 5
+
+    output = (
+        capsys
+        .readouterr()
+        .out
+    )
+
+    assert (
+        "INTERNAL ERROR:"
+        in output
+    )
+
+    assert (
+        "unexpected failure"
+        in output
     )

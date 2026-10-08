@@ -8,9 +8,15 @@ from app.analysis.mention_aggregator import (
 from app.analysis.models import (
     MentionTarget,
     SentimentLabel,
+    SentimentStatus,
 )
 from app.analysis.sentiment_aggregator import (
     analyze_batch_sentiment,
+    analyze_batch_sentiment_with_provider,
+)
+
+from app.analysis.sentiment_config import (
+    SentimentConfig,
 )
 from app.core.enums import (
     GeoMode,
@@ -551,4 +557,135 @@ def test_empty_batch_returns_zero_rates() -> None:
             summary.question_level
             .non_negative_rate
             == 0.0
+    )
+
+
+
+class UnavailableProvider:
+    provider_name = "ollama"
+    model_name = "qwen2.5:7b"
+
+    def __init__(self) -> None:
+        self.health_check_calls = 0
+        self.classify_calls = 0
+
+    async def health_check(
+            self,
+    ) -> bool:
+        self.health_check_calls += 1
+        return False
+
+    async def classify(
+            self,
+            *,
+            system_prompt: str,
+            user_prompt: str,
+    ):
+        self.classify_calls += 1
+
+        raise AssertionError(
+            "classify must not be called "
+            "when health check fails"
+        )
+
+
+def test_unavailable_provider_skips_all_classify_calls(
+) -> None:
+    results = [
+        _result(
+            task_id="Q001_quick",
+            question_id="Q001",
+            mode=GeoMode.QUICK,
+            answer=(
+                "\u9e3f\u8305\u836f\u9152"
+                "\u88ab\u63d0\u53ca\u3002"
+            ),
+        ),
+        _result(
+            task_id="Q002_quick",
+            question_id="Q002",
+            mode=GeoMode.QUICK,
+            answer="ordinary answer",
+        ),
+    ]
+
+    targets = [
+        _target()
+    ]
+
+    mention_batch = (
+        analyze_batch_mentions(
+            results=results,
+            targets=targets,
+        )
+    )
+
+    provider = UnavailableProvider()
+
+    batch = asyncio.run(
+        analyze_batch_sentiment_with_provider(
+            results=results,
+            mention_batch=mention_batch,
+            targets=targets,
+            provider=provider,
+            config=SentimentConfig(),
+        )
+    )
+
+    assert provider.health_check_calls == 1
+
+    assert provider.classify_calls == 0
+
+    mentioned = batch.details[
+        "Q001_quick"
+    ][
+        "hongmao_yaojiu"
+    ]
+
+    assert (
+        mentioned.status
+        == SentimentStatus.FAILED
+    )
+
+    assert (
+        mentioned.error_type
+        == "provider_unavailable"
+    )
+
+    assert mentioned.attempt_count == 0
+    assert mentioned.request_count == 0
+
+    unmentioned = batch.details[
+        "Q002_quick"
+    ][
+        "hongmao_yaojiu"
+    ]
+
+    assert (
+        unmentioned.status
+        == SentimentStatus.NOT_APPLICABLE
+    )
+
+    summary = batch.summaries[
+        "hongmao_yaojiu"
+    ].quick
+
+    assert (
+        summary.planned_mention_count
+        == 1
+    )
+
+    assert (
+        summary.classified_mention_count
+        == 0
+    )
+
+    assert (
+        summary.classification_failed_count
+        == 1
+    )
+
+    assert (
+        summary.non_negative_rate
+        == 0.0
     )

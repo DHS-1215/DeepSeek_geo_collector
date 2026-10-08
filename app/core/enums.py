@@ -38,6 +38,7 @@ class FailureType(str, Enum):
 
     CAPTCHA = "captcha"
     RISK_CONTROL = "risk_control"
+    RATE_LIMIT = "rate_limit"
     LOGIN_EXPIRED = "login_expired"
 
     ANSWER_TIMEOUT = "answer_timeout"

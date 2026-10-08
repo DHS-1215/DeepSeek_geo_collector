@@ -26,6 +26,7 @@ from app.analysis.models import (
     MentionBatchResult,
     MentionTarget,
     SentimentBatchResult,
+    SentimentStatus,
     SourceTop10Summary,
 )
 from app.analysis.sentiment_config import (
@@ -420,4 +421,168 @@ def test_run_geo_analysis_real_mention_and_sentiment() -> None:
             analysis.sources
             .top10_share
             == 0.0
+    )
+
+
+
+class UnavailableProvider:
+    provider_name = "ollama"
+    model_name = "qwen2.5:7b"
+
+    def __init__(self) -> None:
+        self.health_check_calls = 0
+        self.classify_calls = 0
+
+    async def health_check(
+            self,
+    ) -> bool:
+        self.health_check_calls += 1
+        return False
+
+    async def classify(
+            self,
+            *,
+            system_prompt: str,
+            user_prompt: str,
+    ):
+        self.classify_calls += 1
+
+        raise AssertionError(
+            "classify must not be called"
+        )
+
+
+def test_run_geo_analysis_continues_when_sentiment_provider_unavailable(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_result = GeoRunResult(
+        provider="deepseek",
+
+        run_id="run_unavailable",
+
+        task=GeoTask(
+            task_id="Q001_quick",
+            question_id="Q001",
+            question="test question",
+            mode=GeoMode.QUICK,
+        ),
+
+        answer_text_raw=(
+            "\u9e3f\u8305\u836f\u9152"
+            "\u88ab\u63d0\u53ca\u3002"
+        ),
+
+        answer_text_clean=(
+            "\u9e3f\u8305\u836f\u9152"
+            "\u88ab\u63d0\u53ca\u3002"
+        ),
+
+        validation=ValidationResult(
+            status=ValidationStatus.PASS,
+            is_complete=True,
+        ),
+
+        status=TaskStatus.SUCCESS,
+    )
+
+    provider = UnavailableProvider()
+
+    source_result = SourceTop10Summary(
+        total_occurrences=10,
+        top10_occurrences=6,
+        top10_share=0.6,
+        outside_top10_occurrences=4,
+        outside_top10_share=0.4,
+    )
+
+    source_mock = Mock(
+        return_value=source_result
+    )
+
+    monkeypatch.setattr(
+        analysis_runner_module,
+        "analyze_source_top10",
+        source_mock,
+    )
+
+    analysis = asyncio.run(
+        analysis_runner_module
+        .run_geo_analysis(
+            results=[
+                run_result
+            ],
+            targets=[
+                _target()
+            ],
+            sentiment_provider=provider,
+            sentiment_config=(
+                SentimentConfig()
+            ),
+        )
+    )
+
+    assert (
+        provider.health_check_calls
+        == 1
+    )
+
+    assert (
+        provider.classify_calls
+        == 0
+    )
+
+    sentiment = (
+        analysis
+        .sentiment
+        .details[
+            "Q001_quick"
+        ][
+            "hongmao_yaojiu"
+        ]
+    )
+
+    assert (
+        sentiment.status
+        == SentimentStatus.FAILED
+    )
+
+    assert (
+        sentiment.error_type
+        == "provider_unavailable"
+    )
+
+    assert (
+        analysis.sources
+        is source_result
+    )
+
+    source_mock.assert_called_once_with(
+        results=[
+            run_result
+        ],
+        mode=GeoMode.QUICK,
+    )
+
+    summary = (
+        analysis
+        .sentiment
+        .summaries[
+            "hongmao_yaojiu"
+        ]
+        .quick
+    )
+
+    assert (
+        summary.planned_mention_count
+        == 1
+    )
+
+    assert (
+        summary.classified_mention_count
+        == 0
+    )
+
+    assert (
+        summary.classification_failed_count
+        == 1
     )

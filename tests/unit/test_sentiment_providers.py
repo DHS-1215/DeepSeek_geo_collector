@@ -412,3 +412,61 @@ def test_invalid_model_json() -> None:
             exc_info.value.error_type
             == "invalid_response"
     )
+
+
+
+def test_ollama_health_check_uses_health_timeout(
+) -> None:
+    config = SentimentConfig(
+        request_timeout_seconds=180,
+        health_check_timeout_seconds=3,
+    )
+
+    provider = (
+        OllamaSentimentProvider(
+            config
+        )
+    )
+
+    captured = {}
+
+    def fake_urlopen(
+            request,
+            timeout,
+    ):
+        captured["url"] = (
+            request.full_url
+        )
+
+        captured["timeout"] = timeout
+
+        return FakeResponse(
+            {},
+            status=200,
+        )
+
+    with patch(
+            (
+                "app.analysis."
+                "sentiment_providers.urlopen"
+            ),
+            side_effect=fake_urlopen,
+    ):
+        healthy = asyncio.run(
+            provider.health_check()
+        )
+
+    assert healthy is True
+
+    assert (
+        captured["url"]
+        == (
+            "http://127.0.0.1:11434"
+            "/api/tags"
+        )
+    )
+
+    assert (
+        captured["timeout"]
+        == 3
+    )

@@ -41,6 +41,8 @@ class SentimentConfig:
 
     request_timeout_seconds: int = 180
 
+    health_check_timeout_seconds: int = 3
+
     temperature: float = 0.0
 
     max_tokens: int = 256
@@ -113,6 +115,13 @@ def load_sentiment_config(
             _get_int_env(
                 "SENTIMENT_REQUEST_TIMEOUT_SECONDS",
                 180,
+            )
+        ),
+
+        health_check_timeout_seconds=(
+            _get_int_env(
+                "SENTIMENT_HEALTH_CHECK_TIMEOUT_SECONDS",
+                3,
             )
         ),
 
@@ -296,6 +305,15 @@ def _validate_config(
     ):
         raise ConfigurationError(
             "SENTIMENT_REQUEST_TIMEOUT_SECONDS "
+            "must be greater than 0"
+        )
+
+    if (
+            config.health_check_timeout_seconds
+            <= 0
+    ):
+        raise ConfigurationError(
+            "SENTIMENT_HEALTH_CHECK_TIMEOUT_SECONDS "
             "must be greater than 0"
         )
 

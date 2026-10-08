@@ -6,11 +6,13 @@ from unittest.mock import (
 )
 
 from app.core.enums import (
+    FailureType,
     GeoMode,
     TaskStatus,
 )
 
 from app.core.models import (
+    FailureInfo,
     GeoRunResult,
     GeoTask,
 )
@@ -38,6 +40,9 @@ from app.batch.models import (
 
 from app.pipeline.models import (
     PipelineStatus,
+)
+from app.pipeline.exceptions import (
+    PipelinePausedError,
 )
 
 
@@ -572,20 +577,24 @@ def test_pipeline_warns_when_sentiment_analysis_fails(
         ),
     )
 
+    export_mock = Mock(
+        return_value=(
+            package_path
+        )
+    )
+
+    verify_mock = Mock()
+
     monkeypatch.setattr(
         pipeline_runner_module,
         "export_batch_package",
-        Mock(
-            return_value=(
-                package_path
-            )
-        ),
+        export_mock,
     )
 
     monkeypatch.setattr(
         pipeline_runner_module,
         "verify_geo_package",
-        Mock(),
+        verify_mock,
     )
 
     result = asyncio.run(
@@ -617,3 +626,132 @@ def test_pipeline_warns_when_sentiment_analysis_fails(
             == PipelineStatus
             .PASS_WITH_WARNINGS
     )
+
+    assert (
+        result.package_path
+        == package_path
+    )
+
+    assert (
+        result.package_verified
+        is True
+    )
+
+    export_mock.assert_called_once_with(
+        result=batch_result,
+        output_dir=tmp_path,
+        product_id="hongmao_yaojiu",
+        product_name="\u9e3f\u8305\u836f\u9152",
+    )
+
+    verify_mock.assert_called_once_with(
+        package_path
+    )
+
+
+
+def test_pipeline_pauses_on_rate_limit(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+) -> None:
+    task = GeoTask(
+        task_id="Q001_quick",
+        question_id="Q001",
+        question="rate limit test",
+        mode=GeoMode.QUICK,
+    )
+
+    rate_limited_result = GeoRunResult(
+        provider="deepseek",
+        run_id="run_rate_limit_001",
+        batch_id="batch_rate_limit_001",
+        task=task,
+        status=TaskStatus.FAILED,
+        failure=FailureInfo(
+            type=FailureType.RATE_LIMIT,
+            message="rate limited",
+            retryable=False,
+        ),
+    )
+
+    batch_result = BatchResult(
+        batch_id="batch_rate_limit_001",
+        status=BatchStatus.FAILED,
+        total_count=1,
+        success_count=0,
+        failed_count=1,
+        results=[
+            rate_limited_result,
+        ],
+    )
+
+    analysis_mock = AsyncMock()
+    export_mock = Mock()
+    verify_mock = Mock()
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "load_batch_tasks",
+        Mock(
+            return_value=[
+                object(),
+            ]
+        ),
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "run_batch",
+        AsyncMock(
+            return_value=batch_result
+        ),
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "run_geo_analysis",
+        analysis_mock,
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "export_batch_package",
+        export_mock,
+    )
+
+    monkeypatch.setattr(
+        pipeline_runner_module,
+        "verify_geo_package",
+        verify_mock,
+    )
+
+    with pytest.raises(
+            PipelinePausedError,
+            match="batch_rate_limit_001",
+    ):
+        asyncio.run(
+            pipeline_runner_module
+            .run_collection_pipeline(
+                csv_path=Path(
+                    "input/tasks.csv"
+                ),
+                batch_id=(
+                    "batch_rate_limit_001"
+                ),
+                output_dir=tmp_path,
+                product_id=(
+                    "hongmao_yaojiu"
+                ),
+                product_name=(
+                    "\u9e3f\u8305\u836f\u9152"
+                ),
+                sentiment_provider=object(),
+                sentiment_config=(
+                    SentimentConfig()
+                ),
+            )
+        )
+
+    analysis_mock.assert_not_awaited()
+    export_mock.assert_not_called()
+    verify_mock.assert_not_called()

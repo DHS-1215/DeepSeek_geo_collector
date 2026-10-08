@@ -18,6 +18,10 @@ class RiskControlError(BrowserError):
     """检测到平台风控"""
 
 
+class RateLimitError(BrowserError):
+    """DeepSeek message sending rate limited"""
+
+
 class UiChangedError(BrowserError):
     """页面 DOM 或关键 UI 结构发生变化"""
 

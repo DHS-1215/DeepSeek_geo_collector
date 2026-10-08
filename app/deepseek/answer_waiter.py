@@ -7,9 +7,16 @@ from playwright.async_api import Page
 from app.core.exceptions import (
     AnswerEmptyError,
     AnswerTimeoutError,
+    RateLimitError,
 )
 from app.deepseek.selectors import (
     ASSISTANT_MESSAGE_MAIN,
+)
+
+
+RATE_LIMIT_TEXT = (
+    "\u6d88\u606f\u53d1\u9001\u8fc7\u4e8e\u9891\u7e41\uff0c"
+    "\u8bf7\u7a0d\u540e\u91cd\u8bd5"
 )
 
 
@@ -60,6 +67,16 @@ async def wait_for_new_answer(
 
         if elapsed >= timeout_seconds:
             break
+
+        rate_limit = page.get_by_text(
+            RATE_LIMIT_TEXT,
+            exact=False,
+        )
+
+        if await rate_limit.count() > 0:
+            raise RateLimitError(
+                RATE_LIMIT_TEXT
+            )
 
         answers = page.locator(
             ASSISTANT_MESSAGE_MAIN

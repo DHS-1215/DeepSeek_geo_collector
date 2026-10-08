@@ -37,7 +37,13 @@ from app.batch.loader import (
 from app.batch.runner import (
     run_batch,
 )
-from app.core.enums import GeoMode
+from app.core.enums import (
+    FailureType,
+    GeoMode,
+)
+from app.pipeline.exceptions import (
+    PipelinePausedError,
+)
 from app.package.verifier import (
     verify_geo_package,
 )
@@ -122,6 +128,14 @@ async def run_collection_pipeline(
         ),
     )
 
+    if _batch_has_rate_limit(
+            batch_result
+    ):
+        raise PipelinePausedError(
+            batch_id=batch_result.batch_id,
+            reason="deepseek_rate_limit",
+        )
+
     analysis_result = await run_geo_analysis(
         results=batch_result.results,
         targets=targets,
@@ -196,6 +210,19 @@ async def run_collection_pipeline(
         package_verified=True,
         analysis_path=analysis_path,
         analysis_verified=True,
+    )
+
+
+def _batch_has_rate_limit(
+        batch_result,
+) -> bool:
+    return any(
+        (
+            result.failure is not None
+            and result.failure.type
+            == FailureType.RATE_LIMIT
+        )
+        for result in batch_result.results
     )
 
 

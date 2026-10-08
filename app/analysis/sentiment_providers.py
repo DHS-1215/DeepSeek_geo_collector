@@ -357,7 +357,7 @@ class OllamaSentimentProvider:
                     request,
                     timeout=(
                             self.config
-                                    .request_timeout_seconds
+                                    .health_check_timeout_seconds
                     ),
             ) as response:
                 return (

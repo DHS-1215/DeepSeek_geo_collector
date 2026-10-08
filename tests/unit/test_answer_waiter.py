@@ -6,6 +6,7 @@ import app.deepseek.answer_waiter as answer_waiter_module
 from app.core.exceptions import (
     AnswerEmptyError,
     AnswerTimeoutError,
+    RateLimitError,
 )
 from app.deepseek.answer_waiter import wait_for_new_answer
 
@@ -41,14 +42,30 @@ class _FakePage:
     def __init__(
             self,
             locator: _FakeAnswerLocator,
+            *,
+            rate_limited: bool = False,
     ) -> None:
         self._locator = locator
+        self._rate_limit_locator = (
+            _FakeAnswerLocator(
+                [],
+                count=1 if rate_limited else 0,
+            )
+        )
 
     def locator(
             self,
             selector: str,
     ) -> _FakeAnswerLocator:
         return self._locator
+
+    def get_by_text(
+            self,
+            text: str,
+            *,
+            exact: bool = False,
+    ) -> _FakeAnswerLocator:
+        return self._rate_limit_locator
 
 
 def test_wait_for_new_answer_returns_after_text_stabilizes(
@@ -186,3 +203,45 @@ def test_wait_for_new_answer_raises_when_new_answer_stays_empty(
                 timeout_seconds=0.5,
             )
         )
+
+
+
+def test_wait_for_new_answer_raises_rate_limit(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    times = iter(
+        [
+            0.0,
+            0.1,
+        ]
+    )
+
+    monkeypatch.setattr(
+        answer_waiter_module,
+        "monotonic",
+        lambda: next(times),
+    )
+
+    page = _FakePage(
+        _FakeAnswerLocator(
+            [],
+            count=0,
+        ),
+        rate_limited=True,
+    )
+
+    with pytest.raises(
+            RateLimitError,
+    ) as exc_info:
+        asyncio.run(
+            wait_for_new_answer(
+                page,
+                previous_answer_count=0,
+                timeout_seconds=10,
+            )
+        )
+
+    assert (
+        str(exc_info.value)
+        == answer_waiter_module.RATE_LIMIT_TEXT
+    )

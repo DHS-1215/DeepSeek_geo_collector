@@ -13,6 +13,7 @@ from app.analysis.sentiment import (
     SentimentClassifier,
     analyze_sentiment,
     analyze_sentiment_with_provider,
+    should_classify_sentiment,
 )
 from app.analysis.sentiment_config import (
     SentimentConfig,
@@ -147,6 +148,22 @@ async def analyze_batch_sentiment_with_provider(
         targets
     )
 
+    provider_available = (
+        await _provider_is_available(
+            provider
+        )
+    )
+
+    if not provider_available:
+        return (
+            _build_provider_unavailable_batch(
+                results=results,
+                mention_batch=mention_batch,
+                targets=targets,
+                provider=provider,
+            )
+        )
+
     details: dict[
         str,
         dict[
@@ -195,6 +212,167 @@ async def analyze_batch_sentiment_with_provider(
                     config=config,
                 )
             )
+
+            task_sentiments[
+                target.target_id
+            ] = sentiment
+
+        details[
+            task_id
+        ] = task_sentiments
+
+        analysis_rows.append(
+            (
+                result,
+                task_sentiments,
+            )
+        )
+
+    return _build_batch_result(
+        details=details,
+        analysis_rows=analysis_rows,
+        targets=targets,
+    )
+
+
+async def _provider_is_available(
+        provider: SentimentModelProvider,
+) -> bool:
+    """
+    Check provider availability once before
+    starting batch sentiment analysis.
+
+    Providers used by older tests may not
+    implement health_check; keep those
+    compatible by treating them as available.
+    """
+
+    health_check = getattr(
+        provider,
+        "health_check",
+        None,
+    )
+
+    if health_check is None:
+        return True
+
+    try:
+        return bool(
+            await health_check()
+        )
+
+    except Exception:
+        return False
+
+
+def _build_provider_unavailable_batch(
+        *,
+        results: list[GeoRunResult],
+        mention_batch: MentionBatchResult,
+        targets: list[MentionTarget],
+        provider: SentimentModelProvider,
+) -> SentimentBatchResult:
+    """
+    Build deterministic failed sentiment
+    results without calling the unavailable
+    provider for every task.
+    """
+
+    details: dict[
+        str,
+        dict[
+            str,
+            SentimentResult,
+        ],
+    ] = {}
+
+    analysis_rows: list[
+        tuple[
+            GeoRunResult,
+            dict[
+                str,
+                SentimentResult,
+            ],
+        ]
+    ] = []
+
+    provider_name = getattr(
+        provider,
+        "provider_name",
+        provider.__class__.__name__,
+    )
+
+    model_name = getattr(
+        provider,
+        "model_name",
+        None,
+    )
+
+    for result in results:
+        task_id = result.task.task_id
+
+        mention = (
+            mention_batch.details.get(
+                task_id
+            )
+        )
+
+        if mention is None:
+            raise ValueError(
+                "missing mention result for task: "
+                f"{task_id}"
+            )
+
+        task_sentiments: dict[
+            str,
+            SentimentResult,
+        ] = {}
+
+        for target in targets:
+            should_classify = (
+                should_classify_sentiment(
+                    result=result,
+                    mention=mention,
+                    target_id=target.target_id,
+                )
+            )
+
+            if not should_classify:
+                sentiment = SentimentResult(
+                    target_id=target.target_id,
+                    status=(
+                        SentimentStatus
+                        .NOT_APPLICABLE
+                    ),
+                )
+
+            else:
+                sentiment = SentimentResult(
+                    target_id=target.target_id,
+                    target_name=target.name,
+                    status=SentimentStatus.FAILED,
+                    mentioned=True,
+                    reason=(
+                        "sentiment provider unavailable"
+                    ),
+                    provider=str(
+                        provider_name
+                    ),
+                    model_name=(
+                        str(model_name)
+                        if model_name is not None
+                        else None
+                    ),
+                    error_type=(
+                        "provider_unavailable"
+                    ),
+                    error_message=(
+                        "sentiment provider "
+                        "health check failed"
+                    ),
+                    attempt_count=0,
+                    request_count=0,
+                )
 
             task_sentiments[
                 target.target_id

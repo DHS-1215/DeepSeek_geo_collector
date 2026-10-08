@@ -11,7 +11,10 @@ from app.batch.models import (
     BatchTask,
 )
 from app.core.config import load_settings
-from app.core.enums import TaskStatus
+from app.core.enums import (
+    FailureType,
+    TaskStatus,
+)
 from app.core.models import (
     GeoRunResult,
     GeoTask,
@@ -205,6 +208,33 @@ async def run_batch(
                 ),
                 status="RUNNING",
             )
+
+        if (
+                run_result.failure is not None
+                and run_result.failure.type
+                == FailureType.RATE_LIMIT
+        ):
+            if checkpoint_output_dir is not None:
+                save_checkpoint(
+                    output_dir=checkpoint_output_dir,
+                    batch_id=batch_id,
+                    total_count=len(tasks),
+                    results=list(
+                        results_by_task_id.values()
+                    ),
+                    status="INCOMPLETE",
+                )
+
+            print()
+            print(
+                "[PAUSED] DeepSeek rate limit detected."
+            )
+            print(
+                "[PAUSED] Checkpoint saved. "
+                "Resume this batch later with R."
+            )
+
+            break
 
         has_next_task_to_execute = any(
             next_task.task_id
